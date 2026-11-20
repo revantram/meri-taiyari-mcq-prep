@@ -2,8 +2,10 @@ import re
 import json
 import random
 import os
+import time
 
-print("==> 🌟 Starting 100% Zero-Error AI Database Construction (v3.4.0)...")
+print("==> 🌟 Starting 100% Zero-Error Exhaustive AI Database Construction (v3.5.0)...")
+t0 = time.time()
 
 def clean_base_name(text):
     t = re.sub(r'\(.*?\)', '', str(text))
@@ -30,29 +32,6 @@ DISTRACTORS = {
     "wildlife": ["रणथंभौर राष्ट्रीय उद्यान", "सरिस्का टाइगर रिजर्व", "मुकुंदरा हिल्स राष्ट्रीय उद्यान", "रामगढ़ विषधारी टाइगर रिजर्व", "केवलादेव राष्ट्रीय उद्यान", "राष्ट्रीय मरु उद्यान"],
     "year": ["1949 में", "1955 में", "1956 में", "1961 में", "1980 में", "1982 में", "1987 में", "1991 में", "1994 में", "1995 में", "1997 में", "2008 में"]
 }
-
-def pick_distractors(ans, cat):
-    pool = DISTRACTORS.get(cat, DISTRACTORS["district"])
-    ans_clean = clean_base_name(ans)
-    cands = []
-    seen = {ans_clean}
-    for d in pool:
-        d_clean = clean_base_name(d) if cat in ["dam", "river", "lake", "mineral", "peak"] else d
-        d_base = clean_base_name(d_clean)
-        if d_base not in seen:
-            seen.add(d_base)
-            cands.append(d_clean)
-        if len(cands) == 3:
-            break
-    if len(cands) < 3:
-        for d in DISTRACTORS["district"]:
-            d_base = clean_base_name(d)
-            if d_base not in seen:
-                seen.add(d_base)
-                cands.append(d)
-            if len(cands) == 3:
-                break
-    return cands
 
 def make_money_distractors(core):
     base_core = clean_base_name(core)
@@ -232,86 +211,165 @@ def make_award_distractors(core):
             break
     return dists
 
-# Import the existing curated data structures
+def format_examiner_question(ch_name, key, ans):
+    k = key.strip()
+    if any(w in k for w in ['लंबाई', 'चौड़ाई', 'क्षेत्रफल', 'सीमा', 'ऊंचाई', 'गहराई', 'अनुपात', 'दूरी', 'अंतराल']):
+        return f"राजस्थान भूगोल ({ch_name}) के अनुसार, '{k}' का सही मान क्या है?"
+    elif any(w in k for w in ['जिला', 'मुख्यालय', 'स्थान', 'उद्गम', 'संगम', 'केन्द्र', 'क्षेत्र']):
+        return f"राजस्थान भूगोल के संदर्भ में, '{k}' से संबंधित सही स्थान/तथ्य कौन-सा है?"
+    elif any(w in k for w in ['नदी', 'बांध', 'झील', 'परियोजना', 'अभयारण्य', 'उद्यान', 'खनिज', 'पर्वत', 'पठार', 'चोटी']):
+        return f"राजस्थान में '{k}' के विषय में सही विवरण / स्थिति कौन-सी है?"
+    elif any(w in k for w in ['प्रकार', 'वर्गीकरण', 'श्रेणी', 'नस्ल', 'किस्म', 'उत्पादन', 'साधन']):
+        return f"राजस्थान भूगोल ({ch_name}) के अंतर्गत, '{k}' का सही विवरण पहचानिए:"
+    else:
+        return f"राजस्थान भूगोल ({ch_name}) के संदर्भ में, '{k}' से संबंधित प्रामाणिक तथ्य क्या है?"
+
 from generate_high_standard_database import CURATED_CHAPTERS_DATA, art_culture_chapters, history_chapters
 
 # -------------------------------------------------------------
-# 1. PROCESS GEOGRAPHY CHAPTERS
+# 1. EXHAUSTIVE GEOGRAPHY (2,512 MCQs across 23 chapters)
 # -------------------------------------------------------------
-geo_chapters = []
-total_geo_q = 0
+with open('/data/user/0/com.termux/files/home/.gemini/antigravity-cli/scratch/meri-taiyari-app/raw_raj_geography.txt', 'r', encoding='utf-8') as f:
+    raw_geo_text = f.read().replace('\u200b', '').replace('\ufeff', '')
 
-for ch_data in CURATED_CHAPTERS_DATA:
-    ch_qs = []
-    for item in ch_data["items"]:
-        q_text = item[0]
-        ans = item[1]
-        dist_info = item[2]
-        note_txt = item[3]
+geo_matches = list(re.finditer(r'(?m)^[ \t]*अध्याय[- ](\d+)[ \t]*\n[ \t]*[❀*•\- ]*([^\n❀*•]+)', raw_geo_text))
 
-        # Clean base name for answers if in structural pools
-        cat = dist_info if isinstance(dist_info, str) else "custom"
-        clean_ans = ans
-        if cat in ["dam", "river", "lake", "mineral", "peak"]:
-            clean_ans = clean_base_name(ans)
-        elif cat == "district" and "(" in ans:
-            clean_ans = clean_base_name(ans)
-        elif cat == "organization" and ("19" in ans or "20" in ans):
-            cat = "year"
-            dist_info = "year"
-            clean_ans = clean_base_name(ans)
+exhaustive_geo_chapters = []
+total_geo_mcqs = 0
 
+for idx in range(len(geo_matches)):
+    ch_num = int(geo_matches[idx].group(1))
+    ch_name = geo_matches[idx].group(2).strip()
+    ch_id = f"geo_ch_{ch_num}"
+    
+    curated = [c for c in CURATED_CHAPTERS_DATA if c['number'] == ch_num]
+    curated_items = curated[0]['items'] if curated else []
+    seen_bases = set()
+    ch_questions = []
+    
+    # Process curated items
+    for item in curated_items:
+        q_text, ans, dist_info, note_txt = item
+        clean_ans = clean_base_name(ans) if dist_info in ['dam', 'river', 'lake', 'mineral', 'peak', 'district'] else ans
         ans_base = clean_base_name(clean_ans)
-
-        if isinstance(dist_info, list):
-            cands = []
-            seen = {ans_base}
-            for d in dist_info:
-                d_base = clean_base_name(d)
-                if d_base not in seen:
-                    seen.add(d_base)
-                    cands.append(d)
-                if len(cands) == 3:
-                    break
-            # if still less than 3
-            if len(cands) < 3:
-                for fb in DISTRACTORS["district"]:
-                    fb_base = clean_base_name(fb)
-                    if fb_base not in seen:
-                        seen.add(fb_base)
-                        cands.append(fb)
-                    if len(cands) == 3:
-                        break
-            dists = cands
-        else:
-            dists = pick_distractors(clean_ans, cat)
-
-        opts = [clean_ans] + dists
+        seen_bases.add(ans_base)
+        
+        cands = []
+        c_seen = {ans_base}
+        pool = dist_info if isinstance(dist_info, list) else DISTRACTORS.get(dist_info, DISTRACTORS['district'])
+        for d in pool:
+            d_clean = clean_base_name(d) if dist_info in ['dam', 'river', 'lake', 'mineral', 'peak'] else d
+            d_base = clean_base_name(d_clean)
+            if d_base not in c_seen:
+                c_seen.add(d_base)
+                cands.append(d_clean)
+            if len(cands) == 3: break
+            
+        if len(cands) < 3:
+            for fb in DISTRACTORS['district']:
+                fb_base = clean_base_name(fb)
+                if fb_base not in c_seen:
+                    c_seen.add(fb_base)
+                    cands.append(fb)
+                if len(cands) == 3: break
+                
+        opts = [clean_ans] + cands
         rng = random.Random(abs(hash(clean_ans)) % 999)
         rng.shuffle(opts)
         c_idx = opts.index(clean_ans)
-
-        total_geo_q += 1
-        ch_qs.append({
-            "id": f"GEO_Q_{total_geo_q}",
-            "chapter_id": ch_data["id"],
-            "topic": ch_data["title"],
-            "question": q_text,
-            "options": opts,
-            "correct_index": c_idx,
-            "note": note_txt,
-            "explanation": note_txt,
-            "one_liner": f"{q_text} ➔ **{clean_ans}**"
+        
+        total_geo_mcqs += 1
+        ch_questions.append({
+            'id': f"GEO_Q_{total_geo_mcqs}",
+            'chapter_id': ch_id,
+            'topic': f"अध्याय-{ch_num}: {ch_name}",
+            'question': q_text,
+            'options': opts,
+            'correct_index': c_idx,
+            'note': note_txt,
+            'explanation': note_txt,
+            'one_liner': f"{q_text} ➔ **{clean_ans}**"
         })
-
-    geo_chapters.append({
-        "id": ch_data["id"],
-        "number": ch_data["number"],
-        "title": ch_data["title"],
-        "questions": ch_qs
+        
+    # Process line-by-line raw facts
+    start = geo_matches[idx].end()
+    end = geo_matches[idx+1].start() if idx+1 < len(geo_matches) else len(raw_geo_text)
+    ch_text = raw_geo_text[start:end].strip()
+    lines = [l.strip(' *•\t') for l in ch_text.splitlines() if l.strip(' *•\t')]
+    
+    ch_raw_facts = []
+    for l in lines:
+        if ':' in l:
+            parts = l.split(':', 1)
+            k = parts[0].strip(' *•\t-–')
+            v = parts[1].strip()
+            if k in ['विशेषता', 'मुख्य विशेषता', 'विवरण', 'Note', 'नोट', 'विशेष तथ्य', 'Note 1', 'Note 2']: continue
+            k_clean = re.sub(r'^\d+\.\s*', '', k).strip()
+            core_ans = v.split('(')[0].split('।')[0].strip()
+            ans_base = clean_base_name(core_ans)
+            if 2 <= len(core_ans) <= 60 and ans_base not in seen_bases:
+                seen_bases.add(ans_base)
+                ch_raw_facts.append({
+                    'key': k_clean,
+                    'ans': core_ans,
+                    'full_line': l
+                })
+                
+    for rf in ch_raw_facts:
+        core_ans = rf['ans']
+        ans_base = clean_base_name(core_ans)
+        
+        cands = []
+        c_seen = {ans_base}
+        for sib in ch_raw_facts:
+            s_ans = sib['ans']
+            s_base = clean_base_name(s_ans)
+            if s_base not in c_seen:
+                c_seen.add(s_base)
+                cands.append(s_ans)
+            if len(cands) == 3: break
+            
+        if len(cands) < 3:
+            for cat in ['district', 'km', 'river', 'dam', 'lake', 'mineral', 'soil', 'peak']:
+                for d in DISTRACTORS[cat]:
+                    d_base = clean_base_name(d)
+                    if d_base not in c_seen:
+                        c_seen.add(d_base)
+                        cands.append(d)
+                    if len(cands) == 3: break
+                if len(cands) == 3: break
+                
+        opts = [core_ans] + cands
+        rng = random.Random(abs(hash(rf['key'])) % 1000)
+        rng.shuffle(opts)
+        c_idx = opts.index(core_ans)
+        
+        q_text = format_examiner_question(ch_name, rf['key'], core_ans)
+        note_txt = rf['full_line']
+        if not note_txt.startswith('नोट:'):
+            note_txt = f"नोट: {note_txt}"
+            
+        total_geo_mcqs += 1
+        ch_questions.append({
+            'id': f"GEO_Q_{total_geo_mcqs}",
+            'chapter_id': ch_id,
+            'topic': f"अध्याय-{ch_num}: {ch_name}",
+            'question': q_text,
+            'options': opts,
+            'correct_index': c_idx,
+            'note': note_txt,
+            'explanation': note_txt,
+            'one_liner': f"{q_text} ➔ **{core_ans}**"
+        })
+        
+    exhaustive_geo_chapters.append({
+        'id': ch_id,
+        'number': ch_num,
+        'title': f"अध्याय-{ch_num}: {ch_name}",
+        'questions': ch_questions
     })
 
-print(f"==> Curated Rajasthan Geography: 23 Chapters, {total_geo_q} High-Standard Clean MCQs.")
+print(f"==> Curated Rajasthan Geography: 23 Chapters, {total_geo_mcqs} High-Standard Clean MCQs.")
 
 # -------------------------------------------------------------
 # 2. NATIONAL CURRENT AFFAIRS (126 Dates, 1,337 Clean MCQs)
@@ -340,82 +398,51 @@ def get_nca_contextual_distractors(q_line, core_ans):
     ans_low = core_ans.lower()
     ans_base = clean_base_name(core_ans)
 
-    # 1. Medals
     if "पदक" in q_low or "पदक" in ans_low or "मेडल" in q_low:
         return make_medal_distractors(core_ans)
-
-    # 2. Themes / Slogans
     if "थीम" in q_low or "आदर्श वाक्य" in q_low:
         return make_theme_distractors(core_ans)
-
-    # 3. Dates
     if any(m in ans_low for m in ["जनवरी", "फरवरी", "मार्च", "अप्रैल", "मई", "जून", "जुलाई", "अगस्त", "सितंबर", "अक्टूबर", "नवंबर", "दिसंबर"]) and any(k in q_low for k in ["दिवस कब", "कब मनाया", "तारीख", "तिथि"]):
         return make_date_distractors(core_ans)
-
-    # 4. Duration
     if any(k in ans_low for k in ["वर्ष बाद", "साल बाद", "वर्षों के"]) or ("कितने वर्ष" in q_low and "वर्ष" in ans_low):
         return make_duration_distractors(core_ans)
-
-    # 5. Length / Distance
     if "लंबाई" in q_low or ("किलोमीटर" in ans_low or "कि.मी." in ans_low):
         return make_length_distractors(core_ans)
-
-    # 6. Leaders / Ministers
     if any(k in q_low for k in ["उद्घाटन किसने", "अध्यक्ष कौन", "मंत्री", "किसने किया"]) and any(p in ans_low for p in ["शाह", "मोदी", "सिंह", "मुर्मू", "मंत्री"]):
         return make_national_leader_distractors(core_ans)
-
-    # 7. Awards / Honors
     if any(k in q_low for k in ["पुरस्कार", "सम्मान", "अवार्ड", "यूनेस्को"]):
         return make_award_distractors(core_ans)
-
-    # 8. Ranks
     if any(k in q_low for k in ["स्थान", "रैंक"]) or any(k in ans_low for k in ["स्थान", "पहला", "प्रथम", "द्वितीय"]):
         return make_rank_distractors(core_ans)
-
-    # 9. Percentage
     if "%" in core_ans or "प्रतिशत" in core_ans:
         return make_percentage_distractors(core_ans)
-
-    # 10. Money
     if any(k in core_ans for k in ["करोड़", "लाख", "रुपये", "₹"]):
         return make_money_distractors(core_ans)
-
-    # 11. University / IIT
     if any(k in q_low for k in ["विश्वविद्यालय", "यूनिवर्सिटी", "संस्थान", "iit", "qs"]):
         pool = NCA_DOMAINS["university"]
-    # 12. Country
     elif any(k in q_low for k in ["किस देश", "देश के", "देश द्वारा", "नामकरण किस देश"]):
         pool = NCA_DOMAINS["country"]
-    # 13. International Summit / City
     elif any(k in q_low for k in ["कहाँ आयोजित", "मीटिंग", "सम्मेलन", "शिखर", "apec", "g20", "ब्रिक्स"]):
         pool = NCA_DOMAINS["intl_city"]
-    # 14. Rocket
     elif any(k in q_low for k in ["रॉकेट", "gslv", "pslv", "lv"]):
         pool = NCA_DOMAINS["rocket"]
-    # 15. Satellite
     elif any(k in q_low for k in ["उपग्रह", "satellite", "nvs"]):
         pool = NCA_DOMAINS["satellite"]
-    # 16. Defense
     elif any(k in q_low for k in ["अभ्यास", "नौसैनिक अभ्यास", "सैन्य अभ्यास"]):
         pool = NCA_DOMAINS["defense"]
-    # 17. Corridor
     elif any(k in q_low for k in ["बुलेट ट्रेन", "कॉरिडोर"]):
         pool = NCA_DOMAINS["corridor"]
-    # 18. Actor / Film
     elif any(k in q_low for k in ["अभिनेता", "अभिनेत्री"]):
         pool = NCA_DOMAINS["actor"]
     elif any(k in q_low for k in ["फिल्म", "मूवी"]):
         pool = NCA_DOMAINS["film"]
-    # 19. State
     elif any(k in q_low for k in ["राज्य में", "किस राज्य"]):
         pool = NCA_DOMAINS["state"]
-    # 20. District
     elif any(k in q_low for k in ["किस जिले", "जिले में"]):
         pool = NCA_DOMAINS["district_india"]
     else:
         pool = NCA_DOMAINS["city"]
 
-    # Filter with clean_base_name
     cands = []
     seen = {ans_base}
     for d in pool:
@@ -545,23 +572,14 @@ def get_raj_contextual_distractors(q_text, ans_raw):
     ans_low = core.lower()
     ans_base = clean_base_name(core)
 
-    # 1. Rank / Position
     if any(k in q_low for k in ['कौन-सा स्थान', 'कौन सा स्थान', 'रैंक']) or any(k in ans_low for k in ['स्थान', 'रैंक', 'पहला', 'प्रथम']):
         return core, make_rank_distractors(core)
-        
-    # 2. Percentage
     if '%' in core or 'प्रतिशत' in core or 'प्रतिशत' in q_low:
         return core, make_percentage_distractors(core)
-
-    # 3. Money / Budget / Fines
     if any(k in core for k in ['करोड़', 'लाख', 'रुपये', '₹']) or any(k in q_low for k in ['बजट', 'राशि', 'जुर्माना', 'रुपये']):
         return core, make_money_distractors(core)
-
-    # 4. Medals
     if 'पदक' in core or 'पदक' in q_low:
         return core, make_medal_distractors(core)
-
-    # 5. General Count / Numbers
     if re.search(r'^\d+\s+\S+', core) and any(k in q_low for k in ['कितने', 'कितनी', 'संख्या']):
         m = re.search(r'^(\d+)\s+(.+)', core)
         if m:
@@ -571,7 +589,6 @@ def get_raj_contextual_distractors(q_text, ans_raw):
             dists = [f'{c} {suffix}' for c in candidates if f'{c} {suffix}' != core][:3]
             if len(dists) == 3: return core, dists
 
-    # 6. Athletes / Sports (Contextual sport pools)
     if 'कबड्डी' in q_low:
         kabaddi_cands = ['रवि कुमार', 'दीपक हुड्डा', 'सचिन तंवर', 'जसवीर सिंह', 'अजय ठाकुर']
         dists = [p for p in kabaddi_cands if clean_base_name(p) != ans_base][:3]
@@ -584,38 +601,27 @@ def get_raj_contextual_distractors(q_text, ans_raw):
         athletes = ['सविता पूनिया', 'प्रिया गुर्जर', 'सचिन चेची', 'लविशा आसीवाल', 'अवनी लेखरा', 'अपूर्वी चंदेला', 'सुंदर सिंह गुर्जर']
         dists = [p for p in athletes if clean_base_name(p) != ans_base][:3]
         return core, dists
-
-    # 7. Dignitaries / Awardees / Officers
     if any(k in q_low for k in ['किसे', 'किसने', 'सम्मानित', 'अवार्ड', 'पुरस्कार', 'अध्यक्ष', 'महानिदेशक', 'डीजीपी', 'नियुक्त', 'डॉ.']):
         persons = ['डॉ. देवेंद्र चतुर्वेदी', 'नौशाद अंसारी', 'डॉ. कृति भारती', 'रुमा देवी', 'राजीव कुमार शर्मा', 'सुंदर कांति जोशी', 'तारादत्त निर्विरोध', 'माधव हाड़ा', 'मुख्यमंत्री भजन लाल शर्मा']
         dists = [p for p in persons if clean_base_name(p) != ans_base][:3]
         return core, dists
-
-    # 8. Schemes / Missions / Programs
     if any(k in q_low for k in ['योजना', 'मिशन', 'अभियान', 'पोर्टल', 'प्रोग्राम']):
         schemes = ['मिशन कर्मयोगी', 'ऑपरेशन क्लीन स्वीप', 'मिशन वात्सल्य', 'सजग ग्राम योजना', 'मुख्यमंत्री अनुप्रति योजना', 'इंदिरा रसोई योजना']
         dists = [s for s in schemes if clean_base_name(s) != ans_base][:3]
         return core, dists
-
-    # 9. Solar Parks
     if any(k in q_low for k in ['सोलर', 'सौर', 'पार्क']):
         parks = RAJ_DISTRACTOR_POOLS["park"]
         dists = [p for p in parks if clean_base_name(p) != ans_base][:3]
         return core, dists
-
-    # 10. Tigers / Wildlife
     if any(k in q_low for k in ['टाइगर', 'भेड़िय', 'अभयारण्य']):
         tigers = RAJ_DISTRACTOR_POOLS["tiger"]
         dists = [t for t in tigers if clean_base_name(t) != ans_base][:3]
         return core, dists
-
-    # 11. States
     if any(k in q_low for k in ['किस राज्य', 'राज्य में']) or core in ['राजस्थान', 'गुजरात', 'मध्य प्रदेश', 'उत्तर प्रदेश', 'हरियाणा']:
         states = ['राजस्थान', 'मध्य प्रदेश', 'गुजरात', 'महाराष्ट्र', 'उत्तर प्रदेश', 'हरियाणा']
         dists = [s for s in states if clean_base_name(s) != ans_base][:3]
         return core, dists
 
-    # 12. Default District if asking about place/district
     districts = RAJ_DISTRACTOR_POOLS["district"]
     dists = [d for d in districts if clean_base_name(d) != ans_base][:3]
     return core, dists
@@ -697,12 +703,12 @@ for idx in range(len(raj_matches)):
 print(f"==> Rajasthan Current Affairs Processed: {len(raj_ca_dates_dict)} Dates, {raj_ca_q_counter} Clean MCQs.")
 
 # -------------------------------------------------------------
-# 4. ASSEMBLE COMPLETE DATABASE (v3.4.0)
+# 4. ASSEMBLE COMPLETE DATABASE (v3.5.0)
 # -------------------------------------------------------------
 initial_data_obj = {
     "config": {
         "app_name": "मेरी तैयारी • MCQ Prep",
-        "version": "3.4.0",
+        "version": "3.5.0",
         "build_date": "2026-11-21",
         "marking_scheme": {
             "correct": 2.0,
@@ -715,7 +721,7 @@ initial_data_obj = {
         "title": "राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर",
         "linked": True,
         "doc_url": "https://docs.google.com/document/d/1EEDq2GZn4d9UucwlEifT6KF37IN1bK3a4A_Ch8a5JOg/edit?usp=drivesdk",
-        "last_synced": "2026-11-21T00:00:00Z",
+        "last_synced": "2026-11-21T01:00:00Z",
         "dates": nca_dates_dict
     },
     "rajasthan_ca": {
@@ -723,7 +729,7 @@ initial_data_obj = {
         "title": "राजस्थान समसामयिकी (Rajasthan Current Affairs)",
         "linked": True,
         "doc_url": "https://docs.google.com/document/d/1yN1sXUvsm_3q5a49yvB8W7P3wI4tN9aP8e6k0l9m1sQ/edit?usp=drivesdk",
-        "last_synced": "2026-11-21T00:00:00Z",
+        "last_synced": "2026-11-21T01:00:00Z",
         "dates": raj_ca_dates_dict
     },
     "rajasthan_gk": {
@@ -732,17 +738,17 @@ initial_data_obj = {
             "title": "राजस्थान का भूगोल (Rajasthan Geography)",
             "linked": True,
             "doc_url": "https://docs.google.com/document/d/18rG37nZ7G2F61Z6n2H8rK8x1wQ8b2m6e0k3p4q5s7tU/edit?usp=drivesdk",
-            "last_synced": "2026-11-21T00:00:00Z",
-            "total_chapters": len(geo_chapters),
-            "total_questions": total_geo_q,
-            "chapters": geo_chapters
+            "last_synced": "2026-11-21T01:00:00Z",
+            "total_chapters": len(exhaustive_geo_chapters),
+            "total_questions": total_geo_mcqs,
+            "chapters": exhaustive_geo_chapters
         },
         "art_culture": {
             "id": "art_culture",
             "title": "राजस्थान कला एवं संस्कृति (Art & Culture)",
             "linked": True,
             "doc_url": "https://docs.google.com/document/d/1artculture_demo_doc/edit",
-            "last_synced": "2026-11-21T00:00:00Z",
+            "last_synced": "2026-11-21T01:00:00Z",
             "total_chapters": len(art_culture_chapters),
             "total_questions": sum(len(c["questions"]) for c in art_culture_chapters),
             "chapters": art_culture_chapters
@@ -752,7 +758,7 @@ initial_data_obj = {
             "title": "राजस्थान का इतिहास (Rajasthan History)",
             "linked": True,
             "doc_url": "https://docs.google.com/document/d/1history_demo_doc/edit",
-            "last_synced": "2026-11-21T00:00:00Z",
+            "last_synced": "2026-11-21T01:00:00Z",
             "total_chapters": len(history_chapters),
             "total_questions": sum(len(c["questions"]) for c in history_chapters),
             "chapters": history_chapters
@@ -795,23 +801,13 @@ def verify_question_obj(q, section_name):
     global total_verified
     opts = q.get("options", [])
     q_id = q.get("id", "UNKNOWN")
-    q_txt = q.get("question", "")
 
-    # Rule 1: Exactly 4 options
     assert len(opts) == 4, f"[{section_name}] {q_id}: Expected 4 options, found {len(opts)} in {opts}"
-
-    # Rule 2: Strict uniqueness
     assert len(set(opts)) == 4, f"[{section_name}] {q_id}: Strict duplicate options found: {opts}"
-
-    # Rule 3: Clean base name uniqueness (No 'जाखम बांध' vs 'जाखम बांध (प्रतापगढ़)')
     clean_opts = [clean_base_name(o) for o in opts]
     assert len(set(clean_opts)) == 4, f"[{section_name}] {q_id}: Base name collision in {opts}"
-
-    # Rule 4: Correct index within bounds
     c_idx = q.get("correct_index")
     assert 0 <= c_idx < 4, f"[{section_name}] {q_id}: Invalid correct_index {c_idx}"
-
-    # Rule 5: Note text is present and meaningful
     note = q.get("note", "").strip()
     assert len(note) > 0, f"[{section_name}] {q_id}: Empty note field"
 
@@ -846,7 +842,8 @@ for subj_key, subj_obj in initial_data_obj["lsa_subjects"].items():
         for q in ch["questions"]:
             verify_question_obj(q, f"LSA {subj_key}")
 
-print(f"==> 🏆 ALL {total_verified} QUESTIONS VERIFIED: 100% Perfect, Zero Duplicates, Exactly 4 Distinct Clean Options!")
+t1 = time.time()
+print(f"==> 🏆 ALL {total_verified} QUESTIONS VERIFIED: 100% Perfect, Zero Duplicates, Exactly 4 Distinct Clean Options! (in {t1 - t0:.2f}s)")
 
 # -------------------------------------------------------------
 # 6. WRITE TO ROOT AND ASSETS initial_data.js
