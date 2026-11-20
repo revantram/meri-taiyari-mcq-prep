@@ -510,6 +510,8 @@ for idx in range(len(nca_matches)):
         # Build clean note directly from facts
         raw_facts = " ".join([l.replace('*', '').replace('•', '').strip() for l in detail_lines[:3] if len(l) > 10])
         note_text = raw_facts if len(raw_facts) > 20 else ans_raw
+        note_text = re.split(r'\s+\d+\.\s+[^\n]+', note_text)[0].strip()
+        note_text = re.sub(r'_+', '', note_text).strip()
 
         nca_q_counter += 1
         day_questions.append({
@@ -546,11 +548,114 @@ RAJ_DISTRACTOR_POOLS = {
     "tiger": ["रणथंभौर टाइगर रिज़र्व", "सरिस्का टाइगर रिज़र्व", "मुकुंदरा हिल्स टाइगर रिज़र्व", "रामगढ़ विषधारी टाइगर रिज़र्व", "कुंभलगढ़ अभयारण्य"]
 }
 
-def detect_raj_domain(q_line, ans):
-    combo = (q_line + " " + ans).lower()
-    if any(k in combo for k in ["सोलर", "पार्क"]): return "park"
-    if any(k in combo for k in ["टाइगर", "भेड़िय", "अभयारण्य"]): return "tiger"
-    return "district"
+def get_raj_contextual_distractors(q_text, ans_raw):
+    core = ans_raw.split('(')[0].split('।')[0].strip()
+    if ':' in core: core = core.split(':', 1)[1].strip()
+    core = core.strip(' \'\"*•')
+    
+    q_low = q_text.lower()
+    ans_low = core.lower()
+    
+    # Priority 1: If question explicitly asks for a district / city / place
+    if any(k in q_low for k in ['किस जिले', 'किस शहर', 'जिले की', 'कहाँ पर', 'कहाँ आयोजित', 'किस स्थान']):
+        districts = RAJ_DISTRACTOR_POOLS["district"]
+        dists = [d for d in districts if d != core][:3]
+        return core, dists
+
+    # 1. Rank / Position
+    if any(k in q_low for k in ['कौन-सा स्थान', 'कौन सा स्थान', 'रैंक']) or any(k in ans_low for k in ['स्थान', 'रैंक', 'पहला', 'प्रथम']):
+        ranks = ['प्रथम स्थान', 'द्वितीय स्थान', 'तृतीय स्थान', 'चतुर्थ स्थान', 'पाँचवाँ स्थान']
+        dists = [r for r in ranks if r != core][:3]
+        return core, dists
+        
+    # 2. Percentage
+    if '%' in core or 'प्रतिशत' in core or 'प्रतिशत' in q_low:
+        m = re.search(r'(\d+(?:\.\d+)?)\s*%', core)
+        if m:
+            val = float(m.group(1))
+            suffix = core.split('%')[1].strip()
+            suffix_str = f' {suffix}' if suffix else ''
+            offsets = [-15, 12, -8, 18, -20]
+            dists = []
+            for off in offsets:
+                n_val = round(abs(val + off), 1)
+                if n_val == int(n_val): n_val = int(n_val)
+                cand = f'{n_val}%{suffix_str}'
+                if cand != core and cand not in dists:
+                    dists.append(cand)
+                if len(dists) == 3: break
+            return core, dists
+
+    # 3. Money / Budget
+    if any(k in core for k in ['करोड़', 'लाख', 'रुपये', '₹']) or any(k in q_low for k in ['बजट', 'राशि', 'रुपये']):
+        m = re.search(r'(\d+)', core)
+        if m:
+            val = int(m.group(1))
+            prefix = '₹' if '₹' in core else ''
+            unit = 'करोड़' if 'करोड़' in core else ('लाख' if 'लाख' in core else 'रुपये')
+            candidates = [round(val * 0.5), round(val * 1.5), round(val * 2.0), round(val * 0.75)]
+            dists = [f'{prefix}{c} {unit}' for c in candidates if f'{prefix}{c} {unit}' != core][:3]
+            if len(dists) == 3: return core, dists
+
+    # 4. Medals
+    if 'पदक' in core or 'पदक' in q_low:
+        m = re.search(r'(\d+)', core)
+        if m:
+            val = int(m.group(1))
+            candidates = [max(1, val - 6), val + 7, val + 14, val + 4]
+            dists = [f'{c} पदक' for c in candidates if f'{c} पदक' != core][:3]
+            if len(dists) == 3: return core, dists
+
+    # 5. General Count / Numbers
+    if re.search(r'^\d+\s+\S+', core) and any(k in q_low for k in ['कितने', 'कितनी', 'संख्या']):
+        m = re.search(r'^(\d+)\s+(.+)', core)
+        if m:
+            val = int(m.group(1))
+            suffix = m.group(2).strip()
+            candidates = [max(1, val - 2), val + 2, val + 5]
+            dists = [f'{c} {suffix}' for c in candidates if f'{c} {suffix}' != core][:3]
+            if len(dists) == 3: return core, dists
+
+    # 6. Athletes / Sports / Captains
+    if any(k in q_low for k in ['खिलाड़ी', 'खिलाड़ियों', 'स्विमिंग', 'आर्चरी', 'क्रिकेट', 'कबड्डी', 'शूटिंग', 'पदक', 'गोल्ड', 'सिल्वर', 'कप्तान', 'तीरंदाजी', 'हॉकी']):
+        athletes = ['सविता पूनिया', 'प्रिया गुर्जर', 'सचिन चेची', 'लविशा आसीवाल', 'कुशाग्र ओझा', 'रवि कुमार', 'वैभव सूर्यवंशी', 'मानव सुथार', 'अवनी लेखरा', 'अपूर्वी चंदेला', 'रवि बिश्नोई']
+        dists = [p for p in athletes if p != core][:3]
+        return core, dists
+
+    # 7. Dignitaries / Awardees / Officers
+    if any(k in q_low for k in ['किसे', 'किसने', 'सम्मानित', 'अवार्ड', 'पुरस्कार', 'अध्यक्ष', 'महानिदेशक', 'डीजीपी', 'नियुक्त', 'डॉ.']):
+        persons = ['डॉ. देवेंद्र चतुर्वेदी', 'नौशाद अंसारी', 'डॉ. कृति भारती', 'रुमा देवी', 'राजीव कुमार शर्मा', 'सुंदर कांति जोशी', 'तारादत्त निर्विरोध', 'माधव हाड़ा']
+        dists = [p for p in persons if p != core][:3]
+        return core, dists
+
+    # 8. Schemes / Missions / Programs
+    if any(k in q_low for k in ['योजना', 'मिशन', 'अभियान', 'पोर्टल', 'प्रोग्राम']):
+        schemes = ['मिशन कर्मयोगी', 'ऑपरेशन क्लीन स्वीप', 'मिशन वात्सल्य', 'सजग ग्राम योजना', 'मुख्यमंत्री अनुप्रति योजना', 'इंदिरा रसोई योजना']
+        dists = [s for s in schemes if s != core][:3]
+        return core, dists
+
+    # 9. Solar Parks
+    if any(k in q_low for k in ['सोलर', 'सौर', 'पार्क']):
+        parks = RAJ_DISTRACTOR_POOLS["park"]
+        dists = [p for p in parks if p != core][:3]
+        return core, dists
+
+    # 10. Tigers / Wildlife
+    if any(k in q_low for k in ['टाइगर', 'भेड़िय', 'अभयारण्य']):
+        tigers = RAJ_DISTRACTOR_POOLS["tiger"]
+        dists = [t for t in tigers if t != core][:3]
+        return core, dists
+
+    # 11. States
+    if any(k in q_low for k in ['किस राज्य', 'राज्य में']) or core in ['राजस्थान', 'गुजरात', 'मध्य प्रदेश', 'उत्तर प्रदेश', 'हरियाणा']:
+        states = ['राजस्थान', 'मध्य प्रदेश', 'गुजरात', 'महाराष्ट्र', 'उत्तर प्रदेश', 'हरियाणा']
+        dists = [s for s in states if s != core][:3]
+        return core, dists
+
+    # 12. Default District if asking about place/district
+    districts = RAJ_DISTRACTOR_POOLS["district"]
+    dists = [d for d in districts if d != core][:3]
+    return core, dists
 
 raj_matches = list(re.finditer(date_pattern, raj_ca_text))
 raj_ca_dates_dict = {}
@@ -575,35 +680,36 @@ for idx in range(len(raj_matches)):
         q_line = blk_lines[0].strip()
 
         ans_raw = ""
+        detail_lines = []
         for l_idx, l in enumerate(blk_lines[1:], start=1):
             if "उत्तर:" in l or l.startswith("उत्तर:"):
                 ans_raw = l.replace("*", "").replace("उत्तर:", "").strip()
                 if not ans_raw and l_idx < len(blk_lines) - 1:
                     sub_line = blk_lines[l_idx + 1].strip('*•\t ')
                     ans_raw = sub_line.split(':', 1)[1].strip() if ':' in sub_line else sub_line
+            elif any(k in l for k in ["विवरण:", "तकनीकी विशेषताएं:", "महत्वपूर्ण तथ्य:"]):
+                detail_lines = blk_lines[l_idx:]
+                break
 
         if not ans_raw and len(blk_lines) > 1:
             ans_raw = blk_lines[1].strip('*•\t ')
 
         if not ans_raw: continue
 
-        core_ans = ans_raw.split('(')[0].split('।')[0].strip()
-        if ':' in core_ans: core_ans = core_ans.split(':', 1)[1].strip()
-        core_ans = core_ans.strip(" '\"*•")
-
+        core_ans, dists = get_raj_contextual_distractors(q_line, ans_raw)
         if not core_ans or len(core_ans) < 2 or core_ans in ["उत्तर", "उत्तर:", "निम्न", "निम्नलिखित"]:
             continue
 
-        domain = detect_raj_domain(q_line, core_ans)
-        pool = RAJ_DISTRACTOR_POOLS.get(domain, RAJ_DISTRACTOR_POOLS["district"])
-        dists = [d for d in pool if d.strip() != core_ans]
+        opts = [core_ans] + dists
         rng = random.Random(abs(hash(q_line)) % 1000)
-        rng.shuffle(dists)
-        chosen_dists = dists[:3]
-
-        opts = [core_ans] + chosen_dists
         rng.shuffle(opts)
         c_idx = opts.index(core_ans)
+
+        # Build factual note directly from Google doc details
+        raw_facts = " ".join([l.replace('*', '').replace('•', '').strip() for l in detail_lines[:3] if len(l) > 10])
+        note_text = raw_facts if len(raw_facts) > 20 else ans_raw
+        note_text = re.split(r'\s+\d+\.\s+[^\n]+', note_text)[0].strip()
+        note_text = re.sub(r'_+', '', note_text).strip()
 
         raj_ca_q_counter += 1
         day_questions.append({
@@ -613,8 +719,8 @@ for idx in range(len(raj_matches)):
             "question": q_line,
             "options": opts,
             "correct_index": c_idx,
-            "note": ans_raw,
-            "explanation": ans_raw,
+            "note": note_text,
+            "explanation": note_text,
             "one_liner": f"{q_line} ➔ **{core_ans}**"
         })
 
@@ -717,7 +823,7 @@ history_chapters = [
 initial_data_obj = {
     "config": {
         "app_name": "मेरी तैयारी • MCQ Prep",
-        "version": "3.1.0",
+        "version": "3.2.0",
         "build_date": "2026-11-20",
         "marking_scheme": {
             "correct": 2.0,

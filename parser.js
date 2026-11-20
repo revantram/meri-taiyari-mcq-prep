@@ -206,39 +206,82 @@ window.TaiyariParser = window.DocParser = (function() {
 
         if (!coreAns || coreAns.length < 2 || ["उत्तर", "निम्न", "निम्नलिखित"].includes(coreAns)) continue;
 
-        // Detect category
-        let domain = "indian_city";
+        // Smart contextual distractors
+        let dists = [];
         const qLower = (qText + " " + coreAns).toLowerCase();
 
-        if (qLower.includes("किस देश") || qLower.includes("देश के") || qLower.includes("देश द्वारा") || qLower.includes("नामकरण किस देश")) {
-          domain = "country";
-        } else if (qLower.includes("विश्वविद्यालय") || qLower.includes("यूनिवर्सिटी") || qLower.includes("संस्थान") || qLower.includes("रैंकिंग") || qLower.includes("iit") || qLower.includes("qs")) {
-          domain = "university";
-        } else if (qLower.includes("खिलाड़ी") || qLower.includes("वैज्ञानिक") || qLower.includes("time 100") || qLower.includes("शामिल किया") || qLower.includes("सूची")) {
-          domain = "person_group";
-        } else if (qLower.includes("कहाँ आयोजित") || qLower.includes("मीटिंग") || qLower.includes("सम्मेलन") || qLower.includes("शिखर") || qLower.includes("apec") || qLower.includes("g20") || qLower.includes("ब्रिक्स")) {
-          domain = "intl_city";
-        } else if (qLower.includes("रॉकेट") || qLower.includes("gslv") || qLower.includes("pslv")) {
-          domain = "rocket";
-        } else if (qLower.includes("उपग्रह") || qLower.includes("satellite") || qLower.includes("nvs")) {
-          domain = "satellite";
-        } else if (qLower.includes("अभ्यास") || qLower.includes("नौसैनिक") || qLower.includes("सैन्य")) {
-          domain = "defense";
-        } else if (qLower.includes("सोलर") || qLower.includes("पार्क")) {
-          domain = "park";
-        } else if (qLower.includes("टाइगर") || qLower.includes("भेड़िय") || qLower.includes("अभयारण्य")) {
-          domain = "tiger";
-        } else if (qLower.includes("अभिनेता") || qLower.includes("अभिनेत्री")) {
-          domain = "actor";
-        } else if (qLower.includes("फिल्म") || qLower.includes("मूवी")) {
-          domain = "film";
-        } else if (qLower.includes("राज्य")) {
-          domain = "state";
-        } else if (qLower.includes("राजस्थान") || qLower.includes("जिला")) {
-          domain = "district";
+        // 1. Explicit District/City
+        if (qLower.includes("किस जिले") || qLower.includes("किस शहर") || qLower.includes("जिले की") || qLower.includes("कहाँ पर") || qLower.includes("कहाँ आयोजित")) {
+          dists = DISTRACTORS.district.filter(d => d !== coreAns).slice(0, 3);
+        }
+        // 2. Rank / Position
+        else if (qLower.includes("स्थान") || qLower.includes("रैंक") || coreAns.includes("स्थान") || coreAns.includes("पहला") || coreAns.includes("प्रथम")) {
+          const ranks = ["प्रथम स्थान", "द्वितीय स्थान", "तृतीय स्थान", "चतुर्थ स्थान", "पाँचवाँ स्थान"];
+          dists = ranks.filter(r => r !== coreAns).slice(0, 3);
+        }
+        // 3. Percentage
+        else if (coreAns.includes("%") || coreAns.includes("प्रतिशत")) {
+          const m = coreAns.match(/(\d+(?:\.\d+)?)\s*%/);
+          if (m) {
+            const val = parseFloat(m[1]);
+            const suffix = coreAns.split('%')[1].trim();
+            const sfx = suffix ? ' ' + suffix : '';
+            dists = [
+              Math.max(1, Math.round(val - 15)) + '%' + sfx,
+              Math.round(val + 12) + '%' + sfx,
+              Math.max(1, Math.round(val - 8)) + '%' + sfx
+            ];
+          }
+        }
+        // 4. Money / Budget
+        else if (coreAns.includes("करोड़") || coreAns.includes("लाख") || coreAns.includes("₹")) {
+          const m = coreAns.match(/(\d+)/);
+          if (m) {
+            const val = parseInt(m[1]);
+            const pfx = coreAns.includes('₹') ? '₹' : '';
+            const unit = coreAns.includes('करोड़') ? 'करोड़' : (coreAns.includes('लाख') ? 'लाख' : 'रुपये');
+            dists = [
+              `${pfx}${Math.round(val * 0.5)} ${unit}`,
+              `${pfx}${Math.round(val * 1.5)} ${unit}`,
+              `${pfx}${Math.round(val * 2.0)} ${unit}`
+            ];
+          }
+        }
+        // 5. Medals
+        else if (coreAns.includes("पदक") || qLower.includes("पदक")) {
+          const m = coreAns.match(/(\d+)/);
+          if (m) {
+            const val = parseInt(m[1]);
+            dists = [`${Math.max(1, val - 6)} पदक`, `${val + 7} पदक`, `${val + 14} पदक`];
+          }
+        }
+        // 6. Athletes / Sports
+        else if (qLower.includes("खिलाड़ी") || qLower.includes("कप्तान") || qLower.includes("क्रिकेट") || qLower.includes("कबड्डी") || qLower.includes("शूटिंग") || qLower.includes("आर्चरी") || qLower.includes("हॉकी")) {
+          const athletes = ["सविता पूनिया", "प्रिया गुर्जर", "सचिन चेची", "लविशा आसीवाल", "कुशाग्र ओझा", "रवि कुमार", "वैभव सूर्यवंशी", "मानव सुथार", "अवनी लेखरा"];
+          dists = athletes.filter(p => p !== coreAns).slice(0, 3);
+        }
+        // 7. Dignitaries / Awardees / Personalities
+        else if (qLower.includes("किसे") || qLower.includes("सम्मानित") || qLower.includes("अवार्ड") || qLower.includes("पुरस्कार") || qLower.includes("अध्यक्ष") || qLower.includes("महानिदेशक") || qLower.includes("नियुक्त")) {
+          const persons = ["डॉ. देवेंद्र चतुर्वेदी", "नौशाद अंसारी", "डॉ. कृति भारती", "रुमा देवी", "राजीव कुमार शर्मा", "सुंदर कांति जोशी", "तारादत्त निर्विरोध"];
+          dists = persons.filter(p => p !== coreAns).slice(0, 3);
+        }
+        // 8. International / Domains
+        else if (qLower.includes("विश्वविद्यालय") || qLower.includes("यूनिवर्सिटी") || qLower.includes("qs")) {
+          dists = DISTRACTORS.university.filter(u => u !== coreAns).slice(0, 3);
+        } else if (qLower.includes("सम्मेलन") || qLower.includes("मीटिंग") || qLower.includes("apec") || qLower.includes("g20")) {
+          dists = DISTRACTORS.intl_city.filter(c => c !== coreAns).slice(0, 3);
+        } else if (qLower.includes("रॉकेट") || qLower.includes("pslv") || qLower.includes("gslv")) {
+          dists = DISTRACTORS.rocket.filter(r => r !== coreAns).slice(0, 3);
+        } else if (qLower.includes("देश") || qLower.includes("country")) {
+          dists = DISTRACTORS.country.filter(c => c !== coreAns).slice(0, 3);
+        } else {
+          // Smart fallback
+          dists = pickDistractors(coreAns, "district");
         }
 
-        const dists = pickDistractors(coreAns, domain);
+        if (!dists || dists.length < 3) {
+          dists = DISTRACTORS.district.filter(d => d !== coreAns).slice(0, 3);
+        }
         const options = [coreAns, ...dists].sort(() => 0.5 - Math.random());
         const correctIdx = options.indexOf(coreAns);
 
