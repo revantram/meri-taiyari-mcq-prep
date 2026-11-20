@@ -596,6 +596,98 @@ print(f"==> National Current Affairs Processed: {len(nca_dates_dict)} Dates, {nc
 
 
 # -------------------------------------------------------------
+# 2B. RAJASTHAN CURRENT AFFAIRS - CRISP MCQS
+# -------------------------------------------------------------
+with open('/data/user/0/com.termux/files/home/.gemini/antigravity-cli/scratch/meri-taiyari-app/raw_rajasthan_ca.txt', 'r', encoding='utf-8') as f:
+    raj_ca_text = f.read().replace('\u200b', '').replace('\ufeff', '')
+
+DISTRACTORS_RAJ = {
+    'district': ['जयपुर', 'जोधपुर', 'उदयपुर', 'बीकानेर', 'कोटा', 'अजमेर', 'भीलवाड़ा', 'फलौदी', 'जैसलमेर', 'बाड़मेर', 'डूंगरपुर', 'बांसवाड़ा', 'सीकर', 'झुंझुनूं', 'अलवर', 'भरतपुर', 'धौलपुर', 'करौली', 'सवाई माधोपुर', 'टोंक', 'पाली', 'सिरोही', 'जालौर', 'प्रतापगढ़', 'राजसमंद', 'बूंदी', 'बारां', 'दौसा', 'अनूपगढ़', 'बालोतरा', 'सांचौर', 'डीग', 'सलूंबर'],
+    'park': ['भड़ला सोलर पार्क (फलौदी)', 'नोख सोलर पार्क (जैसलमेर)', 'पूगल सोलर पार्क (बीकानेर)', 'फतेहगढ़ सोलर पार्क (जैसलमेर)', 'फलौदी-पोकरण सोलर पार्क'],
+    'person': ['भजनलाल शर्मा', 'दीया कुमारी', 'प्रेमचंद बैरवा', 'वासुदेव देवनानी', 'कलराज मिश्र', 'हरिभाऊ बागड़े', 'अशोक गहलोत'],
+    'tiger': ['रणथंभौर टाइगर रिज़र्व', 'सरिस्का टाइगर रिज़र्व', 'मुकुंदरा हिल्स टाइगर रिज़र्व', 'रामगढ़ विषधारी टाइगर रिज़र्व', 'कुंभलगढ़ अभयारण्य'],
+    'scheme': ['ऑपरेशन क्लीन स्वीप 2.0', 'मिशन दृष्टि', 'मिशन बुनियाद', 'इंदिरा रसोई योजना', 'चिरंजीवी योजना']
+}
+
+def detect_raj_ca_domain(q, a):
+    combo = (q + ' ' + a).lower()
+    if 'सोलर' in combo or 'पार्क' in combo: return 'park'
+    if 'टाइगर' in combo or 'भेड़िय' in combo or 'अभयारण्य' in combo or 'संरक्षित' in combo: return 'tiger'
+    if 'मुख्यमंत्री' in combo or 'मंत्री' in combo or 'राज्यपाल' in combo or 'अध्यक्ष' in combo or 'पुरस्कार' in combo: return 'person'
+    if 'ऑपरेशन' in combo or 'मिशन' in combo or 'अभियान' in combo or 'योजना' in combo: return 'scheme'
+    return 'district'
+
+raj_ca_matches = list(re.finditer(date_pattern, raj_ca_text))
+raj_ca_dates_dict = {}
+raj_ca_q_counter = 0
+
+for idx in range(len(raj_ca_matches)):
+    day_num = int(raj_ca_matches[idx].group(1))
+    month_name = raj_ca_matches[idx].group(2)
+    month_num = month_num_map[month_name]
+    iso_date = f'2026-{month_num}-{day_num:02d}'
+
+    start_pos = raj_ca_matches[idx].end()
+    end_pos = raj_ca_matches[idx+1].start() if idx+1 < len(raj_ca_matches) else len(raj_ca_text)
+    day_text = raj_ca_text[start_pos:end_pos].strip()
+
+    qa_blocks = re.split(r'(?m)^\s*(?:[0-9]+\.|\*)\s*प्रश्न:', day_text)
+    day_questions = []
+
+    for blk in qa_blocks[1:]:
+        blk_lines = [l.strip() for l in blk.strip().splitlines() if l.strip()]
+        if not blk_lines: continue
+        q_line = blk_lines[0].strip()
+
+        ans_raw = ''
+        for l in blk_lines[1:]:
+            if 'उत्तर:' in l:
+                ans_raw = l.replace('*', '').replace('उत्तर:', '').strip()
+                break
+
+        if not ans_raw: continue
+
+        core_ans = ans_raw.split('(')[0].split('।')[0].strip()
+        if ':' in core_ans: core_ans = core_ans.split(':')[1].strip()
+        core_ans = core_ans.strip(' \'\"*•')
+        if not core_ans or len(core_ans) < 2 or core_ans in ['उत्तर', 'निम्न']: continue
+
+        dom = detect_raj_ca_domain(q_line, core_ans)
+        pool = DISTRACTORS_RAJ.get(dom, DISTRACTORS_RAJ['district'])
+        dists = [d for d in pool if d.strip() != core_ans]
+        rng = random.Random(abs(hash(q_line)) % 1000)
+        rng.shuffle(dists)
+        chosen = dists[:3]
+
+        opts = [core_ans] + chosen
+        rng.shuffle(opts)
+        c_idx = opts.index(core_ans)
+
+        raj_ca_q_counter += 1
+        day_questions.append({
+            'id': f'RAJ_CA_Q_{raj_ca_q_counter}',
+            'date': iso_date,
+            'topic': f'राजस्थान करंट अफेयर ({day_num} {month_name} 2026)',
+            'question': q_line,
+            'options': opts,
+            'correct_index': c_idx,
+            'explanation': f'✅ **सही उत्तर:** {core_ans}\n\n📌 **परीक्षा संदर्भ:** राजस्थान समसामयिकी {day_num} {month_name} 2026\n\n📖 **एग्जामिनर व्याख्या:** {ans_raw}',
+            'mnemonic': f'💡 **याद रखने की ट्रिक:** मुख्य बिंदु \'{core_ans}\' को ध्यान में रखें।',
+            'one_liner': f'{q_line} ➔ **{core_ans}**'
+        })
+
+    if day_questions:
+        raj_ca_dates_dict[iso_date] = {
+            'date': iso_date,
+            'display_date': f'{day_num} {month_name} 2026',
+            'questions': day_questions,
+            'total_questions': len(day_questions)
+        }
+
+print(f"==> Rajasthan Current Affairs Processed: {len(raj_ca_dates_dict)} Dates, {raj_ca_q_counter} Crisp MCQs.")
+
+
+# -------------------------------------------------------------
 # 3. RAJASTHAN GK - ART & CULTURE AND HISTORY CRISP DATASET
 # -------------------------------------------------------------
 art_culture_chapters = [
@@ -868,7 +960,7 @@ lsa_dict = {
 initial_data_obj = {
     "config": {
         "app_name": "मेरी तैयारी • MCQ Prep",
-        "version": "2.2.0",
+        "version": "2.3.0",
         "build_date": "2026-11-20",
         "marking_scheme": {
             "correct": 2.0,
@@ -881,16 +973,16 @@ initial_data_obj = {
         "title": "राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर",
         "linked": True,
         "doc_url": "https://docs.google.com/document/d/1EEDq2GZn4d9UucwlEifT6KF37IN1bK3a4A_Ch8a5JOg/edit?usp=drivesdk",
-        "last_synced": "2026-11-20T21:00:00Z",
+        "last_synced": "2026-11-20T23:00:00Z",
         "dates": nca_dates_dict
     },
     "rajasthan_ca": {
         "id": "rajasthan_ca",
         "title": "राजस्थान करंट अफेयर",
-        "linked": False,
-        "doc_url": "",
-        "last_synced": None,
-        "dates": {}
+        "linked": True,
+        "doc_url": "https://docs.google.com/document/d/1gEJesr7k_8B8wTkuvsmnm6Wo1m9CQZwpL-x50aBLrMY/edit?usp=drivesdk",
+        "last_synced": "2026-11-20T23:00:00Z",
+        "dates": raj_ca_dates_dict
     },
     "rajasthan_gk": {
         "geography": {

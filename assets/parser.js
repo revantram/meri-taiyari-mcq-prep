@@ -4,7 +4,7 @@
  * No raw line quoting, no mismatched options.
  */
 
-window.DocParser = (function() {
+window.TaiyariParser = window.DocParser = (function() {
   'use strict';
 
   const monthMap = {
@@ -31,7 +31,9 @@ window.DocParser = (function() {
     film: ["धुरंधर", "जवान", "पुष्पा 2", "12th Fail", "कल्कि 2898 AD", "एनिमल"],
     city: ["श्री विजयापुरम", "विशाखापट्टनम", "कोच्चि", "मुंबई", "चेन्नई", "कोलकाता", "नई दिल्ली", "अहमदाबाद", "जयपुर", "बेंगलुरु"],
     country: ["भारत", "बांग्लादेश", "श्रीलंका", "म्यांमार", "थाईलैंड", "जापान", "फ्रांस", "रूस", "अमेरिका", "जर्मनी"],
-    state: ["गुजरात", "महाराष्ट्र", "उत्तर प्रदेश", "मध्य प्रदेश", "राजस्थान", "कर्नाटक", "तमिलनाडु", "असम", "ओडिशा"]
+    state: ["गुजरात", "महाराष्ट्र", "उत्तर प्रदेश", "मध्य प्रदेश", "राजस्थान", "कर्नाटक", "तमिलनाडु", "असम", "ओडिशा"],
+    park: ["भड़ला सोलर पार्क (फलौदी)", "नोख सोलर पार्क (जैसलमेर)", "पूगल सोलर पार्क (बीकानेर)", "फतेहगढ़ सोलर पार्क (जैसलमेर)", "फलौदी-पोकरण सोलर पार्क"],
+    tiger: ["रणथंभौर टाइगर रिज़र्व", "सरिस्का टाइगर रिज़र्व", "मुकुंदरा हिल्स टाइगर रिज़र्व", "रामगढ़ विषधारी टाइगर रिज़र्व", "कुंभलगढ़ अभयारण्य"]
   };
 
   function pickDistractors(ans, cat) {
@@ -55,15 +57,58 @@ window.DocParser = (function() {
   async function fetchGoogleDocText(url) {
     const docId = extractDocId(url);
     if (!docId) throw new Error("अमान्य गूगल डॉक्स लिंक। कृपया पूरा URL दर्ज करें।");
+    const exportUrl = getExportUrl(docId);
 
+    // 1. Android WebView Native Bridge (Async callback)
     if (window.AndroidInterface && typeof window.AndroidInterface.fetchGoogleDocNative === 'function') {
-      const nativeRes = window.AndroidInterface.fetchGoogleDocNative(docId);
-      if (nativeRes && nativeRes.length > 50 && !nativeRes.startsWith("ERROR:")) {
-        return nativeRes;
+      try {
+        const text = await new Promise((resolve, reject) => {
+          const callbackId = 'doc_cb_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+          const timeoutId = setTimeout(() => {
+            if (window._nativeDocCallbacks && window._nativeDocCallbacks[callbackId]) {
+              delete window._nativeDocCallbacks[callbackId];
+            }
+            reject(new Error("Native fetch timeout"));
+          }, 35000);
+
+          if (!window._nativeDocCallbacks) {
+            window._nativeDocCallbacks = {};
+            window.onNativeDocFetched = function(cbId, success, base64OrErr) {
+              const cb = window._nativeDocCallbacks && window._nativeDocCallbacks[cbId];
+              if (cb) {
+                delete window._nativeDocCallbacks[cbId];
+                if (success) {
+                  try {
+                    const binary = window.atob(base64OrErr);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+                    const decoded = new TextDecoder('utf-8').decode(bytes);
+                    cb.resolve(decoded);
+                  } catch(e) {
+                    cb.resolve(window.atob(base64OrErr));
+                  }
+                } else {
+                  cb.reject(new Error(base64OrErr));
+                }
+              }
+            };
+          }
+
+          window._nativeDocCallbacks[callbackId] = {
+            resolve: (val) => { clearTimeout(timeoutId); resolve(val); },
+            reject: (err) => { clearTimeout(timeoutId); reject(err); }
+          };
+
+          window.AndroidInterface.fetchGoogleDocNative(exportUrl, callbackId);
+        });
+
+        if (text && text.length > 50) return text;
+      } catch (nativeErr) {
+        console.warn("Native bridge fetch failed, falling back to proxies:", nativeErr);
       }
     }
 
-    const exportUrl = getExportUrl(docId);
+    // 2. Direct fetch & CORS proxies fallback
     const proxies = [
       exportUrl,
       `https://api.allorigins.win/raw?url=${encodeURIComponent(exportUrl)}`,
@@ -146,9 +191,11 @@ window.DocParser = (function() {
         if (!coreAns || coreAns.length < 2 || ["उत्तर", "निम्न", "निम्नलिखित"].includes(coreAns)) continue;
 
         // Detect category
-        let domain = "city";
+        let domain = "district";
         const qLower = (qText + " " + coreAns).toLowerCase();
         if (qLower.includes("रॉकेट") || qLower.includes("gslv") || qLower.includes("pslv")) domain = "rocket";
+        else if (qLower.includes("सोलर") || qLower.includes("पार्क")) domain = "park";
+        else if (qLower.includes("टाइगर") || qLower.includes("भेड़िय") || qLower.includes("अभयारण्य")) domain = "tiger";
         else if (qLower.includes("अभिनेता")) domain = "actor";
         else if (qLower.includes("फिल्म") || qLower.includes("मूवी")) domain = "film";
         else if (qLower.includes("देश") || qLower.includes("नामकरण")) domain = "country";
@@ -165,7 +212,7 @@ window.DocParser = (function() {
           id: qId,
           date: dateKey,
           display_date: displayDate,
-          category: "national_international",
+          category: "current_affairs",
           topic: `करंट अफेयर (${displayDate})`,
           question: qText,
           options: options,
@@ -291,7 +338,7 @@ window.DocParser = (function() {
         } else if (line.includes("28वां जिला") || (line.includes("बारां") && line.includes("1991"))) {
           qObj = { q: "10 अप्रैल 1991 को कोटा से अलग कर राजस्थान का 28वां जिला कौन-सा बनाया गया?", ans: "बारां", cat: "district" };
         } else if (line.includes("29 वां जिला") || (line.includes("दौसा") && line.includes("1991"))) {
-          qObj = { q: "10 अप्रैल 1991 को जयपुर से अलग कर राजस्थान का 29वां जिला कौन-सा बना تھا?", ans: "दौसा", cat: "district" };
+          qObj = { q: "10 अप्रैल 1991 को जयपुर से अलग कर राजस्थान का 29वां जिला कौन-सा बना था?", ans: "दौसा", cat: "district" };
         } else if (line.includes("30वां जिला") || (line.includes("राजसमंद") && line.includes("1991"))) {
           qObj = { q: "10 अप्रैल 1991 को उदयपुर से अलग कर राजस्थान का 30वां जिला कौन-सा बना?", ans: "राजसमंद", cat: "district" };
         } else if (line.includes("31 वां जिला") || (line.includes("हनुमानगढ़") && line.includes("1994"))) {
@@ -342,7 +389,7 @@ window.DocParser = (function() {
     return questions;
   }
 
-  return {
+  const ParserAPI = {
     extractDocId,
     getExportUrl,
     fetchGoogleDocText,
@@ -350,4 +397,8 @@ window.DocParser = (function() {
     parseChapterOrTextbookNotes,
     parsePureExaminerFactualNotes: parseCrispExaminerQuestions
   };
+
+  window.TaiyariParser = ParserAPI;
+  window.DocParser = ParserAPI;
+  return ParserAPI;
 })();
