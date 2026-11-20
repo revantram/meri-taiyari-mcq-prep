@@ -114,7 +114,7 @@
     try {
       const savedDbStr = localStorage.getItem(STORAGE_KEYS.DB);
       let needsReset = false;
-      const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "3.0.0";
+      const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "3.1.0";
       if (savedDbStr) {
         const parsed = JSON.parse(savedDbStr);
         if (!parsed.config || parsed.config.version !== requiredVersion) {
