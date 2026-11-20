@@ -231,8 +231,11 @@
     }
   }
 
-  function switchTab(tabId) {
+  function switchTab(tabId, pushHistory = true) {
     AppState.currentTab = tabId;
+    if (pushHistory && tabId !== 'tab-ca') {
+      try { history.pushState({ screen: 'tab', tabId }, ''); } catch(e) {}
+    }
     DOM.navTabs.forEach(t => {
       t.classList.toggle('active', t.getAttribute('data-tab') === tabId);
     });
@@ -348,9 +351,12 @@
     }
   }
 
-  function openCaCategory(categoryKey) {
+  function openCaCategory(categoryKey, pushHistory = true) {
     AppState.currentCaCategory = categoryKey;
     AppState.isInsideCaDetail = true;
+    if (pushHistory) {
+      try { history.pushState({ screen: 'ca_detail', categoryKey }, ''); } catch(e) {}
+    }
 
     const hubEl = document.getElementById('ca-main-hub');
     const detailEl = document.getElementById('ca-category-detail');
@@ -676,11 +682,14 @@
   }
 
   // ================= QUIZ WORKSPACE CONTROLLER =================
-  function openQuizWorkspace(context) {
+  function openQuizWorkspace(context, pushHistory = true) {
     AppState.activeContext = context;
     AppState.practiceAnswers = {};
     AppState.examAnswers = {};
     clearInterval(AppState.examTimerId);
+    if (pushHistory) {
+      try { history.pushState({ screen: 'workspace' }, ''); } catch(e) {}
+    }
 
     // Hide other views and show workspace
     DOM.tabViews.forEach(v => v.classList.remove('active'));
@@ -1799,6 +1808,45 @@
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       .replace(/\n/g, '<br>');
   }
+
+  // ================= NATIVE BACK GESTURE & HARDWARE BACK NAVIGATION =================
+  window.handleNativeBackPressed = function() {
+    // 1. If Exam Result Modal is open, close it
+    const resultModal = document.getElementById('exam-result-modal');
+    if (resultModal && (resultModal.style.display === 'flex' || resultModal.classList.contains('active'))) {
+      resultModal.style.display = 'none';
+      resultModal.classList.remove('active');
+      return true;
+    }
+
+    // 2. If Workspace view is active, close workspace back to current tab
+    if (DOM.viewWorkspace && DOM.viewWorkspace.classList.contains('active')) {
+      DOM.viewWorkspace.classList.remove('active');
+      clearInterval(AppState.examTimerId);
+      switchTab(AppState.currentTab, false);
+      return true;
+    }
+
+    // 3. If inside Current Affairs calendar detail screen, return to CA Hub
+    if (AppState.isInsideCaDetail) {
+      backToCaHub();
+      return true;
+    }
+
+    // 4. If on another tab (GK, Subject, Settings), return to home tab ('tab-ca')
+    if (AppState.currentTab !== 'tab-ca') {
+      switchTab('tab-ca', false);
+      return true;
+    }
+
+    // 5. Already at Root Home (CA Hub with nothing open) -> return false so Android shows double-back-to-exit!
+    return false;
+  };
+
+  // Support HTML5 popstate event (for edge-swipe back gestures in Android WebView)
+  window.addEventListener('popstate', function(e) {
+    window.handleNativeBackPressed();
+  });
 
   // Start app on DOMContentLoaded
   if (document.readyState === 'loading') {

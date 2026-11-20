@@ -9,6 +9,7 @@ import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -147,22 +148,39 @@ public class MainActivity extends Activity {
         mWebView.setWebChromeClient(new WebChromeClient());
         mWebView.setWebViewClient(new WebViewClient());
         mWebView.addJavascriptInterface(new WebAppInterface(this), "AndroidNative");
+        mWebView.addJavascriptInterface(new WebAppInterface(this), "AndroidInterface");
 
         mWebView.loadUrl("file:///android_asset/index.html");
     }
 
     @Override
     public void onBackPressed() {
-        if (mWebView.canGoBack()) {
-            mWebView.goBack();
+        if (mWebView != null) {
+            mWebView.evaluateJavascript("window.handleNativeBackPressed ? window.handleNativeBackPressed() : false", new ValueCallback<String>() {
+                @Override
+                public void onReceiveValue(String value) {
+                    // If JavaScript handled the back navigation (closed workspace, modal, or detail screen)
+                    if ("true".equalsIgnoreCase(value) || "\"true\"".equalsIgnoreCase(value)) {
+                        return;
+                    }
+
+                    // Otherwise at root screen: double press back to exit
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            long now = System.currentTimeMillis();
+                            if (now - mLastBackPress < 2000) {
+                                finish();
+                            } else {
+                                mLastBackPress = now;
+                                Toast.makeText(MainActivity.this, "बाहर निकलने के लिए एक बार फिर 'वापस' दबाएं", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                }
+            });
         } else {
-            long now = System.currentTimeMillis();
-            if (now - mLastBackPress < 2000) {
-                super.onBackPressed();
-            } else {
-                mLastBackPress = now;
-                Toast.makeText(this, "बाहर निकलने के लिए एक बार फिर 'वापस' दबाएं", Toast.LENGTH_SHORT).show();
-            }
+            super.onBackPressed();
         }
     }
 }
