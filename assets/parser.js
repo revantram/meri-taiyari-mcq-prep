@@ -32,6 +32,13 @@ window.TaiyariParser = window.DocParser = (function() {
     city: ["श्री विजयापुरम", "विशाखापट्टनम", "कोच्चि", "मुंबई", "चेन्नई", "कोलकाता", "नई दिल्ली", "अहमदाबाद", "जयपुर", "बेंगलुरु"],
     country: ["भारत", "बांग्लादेश", "श्रीलंका", "म्यांमार", "थाईलैंड", "जापान", "फ्रांस", "रूस", "अमेरिका", "जर्मनी"],
     state: ["गुजरात", "महाराष्ट्र", "उत्तर प्रदेश", "मध्य प्रदेश", "राजस्थान", "कर्नाटक", "तमिलनाडु", "असम", "ओडिशा"],
+    intl_city: ["बीजिंग (चीन)", "टोक्यो (जापान)", "सिंगापुर", "शेंजेन (चीन)", "रियाद (सऊदी अरब)", "बैंकॉक (थाईलैंड)", "जिनेवा (स्विट्जरलैंड)", "पेरिस (फ्रांस)", "वाशिंगटन (यूएसए)", "दुबई (यूएई)", "लंदन (यूके)"],
+    university: ["लुंड यूनिवर्सिटी (स्वीडन)", "हार्वर्ड यूनिवर्सिटी (यूएसए)", "ऑक्सफोर्ड यूनिवर्सिटी (यूके)", "मैसाचुसेट्स इंस्टीट्यूट ऑफ टेक्नोलॉजी (MIT)", "कैम्ब्रिज यूनिवर्सिटी", "टोक्यो यूनिवर्सिटी", "IIT बॉम्बे", "IIT दिल्ली", "IISc बेंगलुरु"],
+    country: ["फिजी", "रूस", "मॉरीशस", "बांग्लादेश", "श्रीलंका", "जापान", "अमेरिका", "फ्रांस", "जर्मनी", "ऑस्ट्रेलिया", "नेपाल", "भूटान"],
+    person_group: ["क्रिकेट से वैभव सूर्यवंशी, विज्ञान से शुभांशु शुक्ला", "भाला फेंक से नीरज चोपड़ा, निशानेबाजी से मनु भाकर", "कुश्ती से अमन सहरावत, मुक्केबाजी से लवलीना", "बैडमिंटन से लक्ष्य सेन, शतरंज से डी. गुकेश"],
+    indian_city: ["नई दिल्ली", "मुंबई", "बेंगलुरु", "अहमदाबाद", "हैदराबाद", "कोलकाता", "चेन्नई", "जयपुर", "पुणे", "लखनऊ"],
+    sports: ["भारत", "ईरान", "ऑस्ट्रेलिया", "इंग्लैंड", "दक्षिण अफ्रीका", "पाकिस्तान"],
+    defense: ["पहला बिम्सटेक अभ्यास", "वरुण अभ्यास 2026", "इंद्र अभ्यास 2026", "मालाबार 2026", "सूर्य किरण", "युद्ध अभ्यास"],
     park: ["भड़ला सोलर पार्क (फलौदी)", "नोख सोलर पार्क (जैसलमेर)", "पूगल सोलर पार्क (बीकानेर)", "फतेहगढ़ सोलर पार्क (जैसलमेर)", "फलौदी-पोकरण सोलर पार्क"],
     tiger: ["रणथंभौर टाइगर रिज़र्व", "सरिस्का टाइगर रिज़र्व", "मुकुंदरा हिल्स टाइगर रिज़र्व", "रामगढ़ विषधारी टाइगर रिज़र्व", "कुंभलगढ़ अभयारण्य"]
   };
@@ -191,15 +198,36 @@ window.TaiyariParser = window.DocParser = (function() {
         if (!coreAns || coreAns.length < 2 || ["उत्तर", "निम्न", "निम्नलिखित"].includes(coreAns)) continue;
 
         // Detect category
-        let domain = "district";
+        let domain = "indian_city";
         const qLower = (qText + " " + coreAns).toLowerCase();
-        if (qLower.includes("रॉकेट") || qLower.includes("gslv") || qLower.includes("pslv")) domain = "rocket";
-        else if (qLower.includes("सोलर") || qLower.includes("पार्क")) domain = "park";
-        else if (qLower.includes("टाइगर") || qLower.includes("भेड़िय") || qLower.includes("अभयारण्य")) domain = "tiger";
-        else if (qLower.includes("अभिनेता")) domain = "actor";
-        else if (qLower.includes("फिल्म") || qLower.includes("मूवी")) domain = "film";
-        else if (qLower.includes("देश") || qLower.includes("नामकरण")) domain = "country";
-        else if (qLower.includes("राज्य")) domain = "state";
+
+        if (qLower.includes("किस देश") || qLower.includes("देश के") || qLower.includes("देश द्वारा") || qLower.includes("नामकरण किस देश")) {
+          domain = "country";
+        } else if (qLower.includes("विश्वविद्यालय") || qLower.includes("यूनिवर्सिटी") || qLower.includes("संस्थान") || qLower.includes("रैंकिंग") || qLower.includes("iit") || qLower.includes("qs")) {
+          domain = "university";
+        } else if (qLower.includes("खिलाड़ी") || qLower.includes("वैज्ञानिक") || qLower.includes("time 100") || qLower.includes("शामिल किया") || qLower.includes("सूची")) {
+          domain = "person_group";
+        } else if (qLower.includes("कहाँ आयोजित") || qLower.includes("मीटिंग") || qLower.includes("सम्मेलन") || qLower.includes("शिखर") || qLower.includes("apec") || qLower.includes("g20") || qLower.includes("ब्रिक्स")) {
+          domain = "intl_city";
+        } else if (qLower.includes("रॉकेट") || qLower.includes("gslv") || qLower.includes("pslv")) {
+          domain = "rocket";
+        } else if (qLower.includes("उपग्रह") || qLower.includes("satellite") || qLower.includes("nvs")) {
+          domain = "satellite";
+        } else if (qLower.includes("अभ्यास") || qLower.includes("नौसैनिक") || qLower.includes("सैन्य")) {
+          domain = "defense";
+        } else if (qLower.includes("सोलर") || qLower.includes("पार्क")) {
+          domain = "park";
+        } else if (qLower.includes("टाइगर") || qLower.includes("भेड़िय") || qLower.includes("अभयारण्य")) {
+          domain = "tiger";
+        } else if (qLower.includes("अभिनेता") || qLower.includes("अभिनेत्री")) {
+          domain = "actor";
+        } else if (qLower.includes("फिल्म") || qLower.includes("मूवी")) {
+          domain = "film";
+        } else if (qLower.includes("राज्य")) {
+          domain = "state";
+        } else if (qLower.includes("राजस्थान") || qLower.includes("जिला")) {
+          domain = "district";
+        }
 
         const dists = pickDistractors(coreAns, domain);
         const options = [coreAns, ...dists].sort(() => 0.5 - Math.random());

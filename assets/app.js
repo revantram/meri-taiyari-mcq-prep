@@ -908,8 +908,57 @@
     paletteEl.innerHTML = html;
   }
 
+  function updateCardUI(q, qId, optIdx, isPractice) {
+    const cards = document.querySelectorAll(`[id="card-${qId}"]`);
+    cards.forEach(card => {
+      const optionEls = card.querySelectorAll('.option-item');
+      optionEls.forEach((optEl, idx) => {
+        if (isPractice) {
+          if (idx === q.correct_index) {
+            optEl.classList.add('correct');
+          } else if (idx === optIdx) {
+            optEl.classList.add('incorrect');
+          }
+        } else {
+          optEl.classList.toggle('selected-exam', idx === optIdx);
+        }
+      });
+
+      if (isPractice) {
+        let expBox = card.querySelector('.mcq-explanation-box');
+        if (!expBox) {
+          expBox = document.createElement('div');
+          expBox.className = 'mcq-explanation-box';
+          expBox.innerHTML = `
+            <div class="exp-title" style="color: ${optIdx === q.correct_index ? 'var(--accent-green, #10b981)' : 'var(--accent-red, #ef4444)'}; font-weight: 700; margin-bottom: 6px;">
+              ${optIdx === q.correct_index ? '✅ सही उत्तर' : '❌ गलत उत्तर'} • ${q.options[q.correct_index]}
+            </div>
+            <div class="exp-body" style="font-size: 13px; line-height: 1.5; color: var(--text-main);">
+              ${formatMarkdown(q.explanation)}
+            </div>
+            ${q.mnemonic ? `
+              <div class="mnemonic-box" style="margin-top: 8px;">
+                <span>💡</span>
+                <div style="font-size: 12px;">${formatMarkdown(q.mnemonic)}</div>
+              </div>` : ''}
+          `;
+          card.appendChild(expBox);
+        }
+      }
+    });
+  }
+
   function handleOptionSelection(qId, optIdx, qIdx) {
-    const q = AppState.activeContext.questions.find(item => item.id === qId);
+    let q = AppState.activeContext && AppState.activeContext.questions && AppState.activeContext.questions.find(item => item.id === qId);
+    if (!q && AppState.activeCaDateKey) {
+      const catKey = AppState.currentCaCategory || 'national_ca';
+      const targetObj = AppState.db[catKey] || {};
+      const datesMap = targetObj.dates || {};
+      const dayData = datesMap[AppState.activeCaDateKey];
+      if (dayData && dayData.questions) {
+        q = dayData.questions.find(item => item.id === qId);
+      }
+    }
     if (!q) return;
 
     markStreakActivity();
@@ -938,7 +987,7 @@
       }
 
       // Update Mastery stats
-      const masterKey = AppState.activeContext.dateKey || AppState.activeContext.chapterId || 'general';
+      const masterKey = (AppState.activeContext && AppState.activeContext.dateKey) || AppState.activeCaDateKey || 'general';
       if (!AppState.masteryStats[masterKey]) {
         AppState.masteryStats[masterKey] = { total: 0, correct: 0 };
       }
@@ -946,11 +995,19 @@
       if (isCorrect) AppState.masteryStats[masterKey].correct++;
       saveMastery();
 
-      renderQuizContent();
+      // Instant visual feedback on the card
+      updateCardUI(q, qId, optIdx, true);
+
+      if (DOM.viewWorkspace && DOM.viewWorkspace.classList.contains('active')) {
+        renderQuizContent();
+      }
     } else {
       // Exam mode
       AppState.examAnswers[qId] = optIdx;
-      renderQuizContent();
+      updateCardUI(q, qId, optIdx, false);
+      if (DOM.viewWorkspace && DOM.viewWorkspace.classList.contains('active')) {
+        renderExamPalette();
+      }
     }
   }
 
