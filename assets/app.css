@@ -830,6 +830,25 @@ body {
   color: #fff;
 }
 
+/* Clean Note Box (Replacing long explanations and mnemonics) */
+.note-box {
+  background: rgba(0, 122, 255, 0.06);
+  border-left: 4px solid var(--primary, #007aff);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 12px 16px;
+  margin-top: 12px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-main);
+  animation: fadeInView 0.2s ease-out;
+}
+
+.note-box strong {
+  color: var(--primary, #007aff);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
 /* Detailed AI Explanation Box */
 .explanation-box {
   background: var(--glass-bg-subtle);

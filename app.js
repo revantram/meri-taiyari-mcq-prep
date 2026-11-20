@@ -114,9 +114,9 @@
     try {
       const savedDbStr = localStorage.getItem(STORAGE_KEYS.DB);
       let needsReset = false;
+      const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "3.0.0";
       if (savedDbStr) {
         const parsed = JSON.parse(savedDbStr);
-        const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "2.2.0";
         if (!parsed.config || parsed.config.version !== requiredVersion) {
           needsReset = true;
         } else {
@@ -128,6 +128,27 @@
           AppState.db = JSON.parse(JSON.stringify(window.INITIAL_DATA));
           saveDatabase();
         }
+      }
+
+      // Ensure all dates and curated subjects are always present
+      if (window.INITIAL_DATA) {
+        ['national_ca', 'rajasthan_ca'].forEach(cat => {
+          if (window.INITIAL_DATA[cat] && window.INITIAL_DATA[cat].dates) {
+            if (!AppState.db[cat]) AppState.db[cat] = JSON.parse(JSON.stringify(window.INITIAL_DATA[cat]));
+            if (!AppState.db[cat].dates) AppState.db[cat].dates = {};
+            const initDates = window.INITIAL_DATA[cat].dates;
+            for (let d in initDates) {
+              if (!AppState.db[cat].dates[d] || !AppState.db[cat].dates[d].questions || AppState.db[cat].dates[d].questions.length === 0) {
+                AppState.db[cat].dates[d] = JSON.parse(JSON.stringify(initDates[d]));
+              }
+            }
+            if (window.INITIAL_DATA[cat].doc_url && !AppState.db[cat].doc_url) {
+              AppState.db[cat].doc_url = window.INITIAL_DATA[cat].doc_url;
+              AppState.db[cat].linked = true;
+            }
+          }
+        });
+        saveDatabase();
       }
     } catch (e) {
       console.warn("Error loading stored DB, falling back to INITIAL_DATA:", e);
@@ -784,6 +805,20 @@
     }
   }
 
+  function cleanNoteText(text) {
+    if (!text) return '';
+    let cleaned = String(text);
+    cleaned = cleaned.replace(/✅\s*\*?सही उत्तर:\*?[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/📌\s*\*?परीक्षा संदर्भ:\*?[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/📖\s*\*?(?:विस्तृत\s*)?एग्जामिनर व्याख्या(?:\s*\([^)]*\))?:\*?[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/💡\s*\*?याद रखने की ट्रिक:[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/✨\s*\*?💡[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/•\s*यह प्रश्न RPSC\s*\/\s*RSSB[^\n]*\n*/gi, '');
+    cleaned = cleaned.replace(/^नोट:\s*/gi, '');
+    cleaned = cleaned.trim();
+    return cleaned;
+  }
+
   function renderMcqs(container) {
     const questions = AppState.activeContext.questions;
     if (!questions || questions.length === 0) {
@@ -851,17 +886,16 @@
 
       html += `</div>`; // .mcq-options-list
 
-      // In practice mode, reveal explanation & mnemonic once answered
+      // In practice mode, reveal note once answered
       if (isPractice && hasAnswered) {
-        html += `
-          <div class="explanation-box">
-            ${formatMarkdown(q.explanation)}
-          </div>
-          <div class="mnemonic-box">
-            <span>✨</span>
-            <div>${formatMarkdown(q.mnemonic)}</div>
-          </div>
-        `;
+        const noteText = cleanNoteText(q.note || q.explanation);
+        if (noteText) {
+          html += `
+            <div class="note-box">
+              <strong>नोट:</strong> ${formatMarkdown(noteText)}
+            </div>
+          `;
+        }
       }
 
       html += `</div>`; // .mcq-card
@@ -874,14 +908,16 @@
     const questions = AppState.activeContext.questions;
     let html = '';
     questions.forEach((q, idx) => {
+      const noteText = cleanNoteText(q.note || q.explanation);
       html += `
         <div class="oneliner-card">
           <span class="oneliner-badge">रिवीज़न बिंदु #${idx + 1}</span>
           <div class="oneliner-text">${formatMarkdown(q.one_liner || q.question)}</div>
-          <div class="mnemonic-box" style="margin-top: 8px;">
-            <span>✨</span>
-            <div style="font-size: 12px;">${formatMarkdown(q.mnemonic)}</div>
-          </div>
+          ${noteText ? `
+            <div class="note-box" style="margin-top: 8px; font-size: 12.5px; padding: 8px 12px;">
+              <strong>नोट:</strong> ${formatMarkdown(noteText)}
+            </div>
+          ` : ''}
         </div>
       `;
     });
@@ -925,24 +961,15 @@
       });
 
       if (isPractice) {
-        let expBox = card.querySelector('.mcq-explanation-box');
-        if (!expBox) {
-          expBox = document.createElement('div');
-          expBox.className = 'mcq-explanation-box';
-          expBox.innerHTML = `
-            <div class="exp-title" style="color: ${optIdx === q.correct_index ? 'var(--accent-green, #10b981)' : 'var(--accent-red, #ef4444)'}; font-weight: 700; margin-bottom: 6px;">
-              ${optIdx === q.correct_index ? '✅ सही उत्तर' : '❌ गलत उत्तर'} • ${q.options[q.correct_index]}
-            </div>
-            <div class="exp-body" style="font-size: 13px; line-height: 1.5; color: var(--text-main);">
-              ${formatMarkdown(q.explanation)}
-            </div>
-            ${q.mnemonic ? `
-              <div class="mnemonic-box" style="margin-top: 8px;">
-                <span>💡</span>
-                <div style="font-size: 12px;">${formatMarkdown(q.mnemonic)}</div>
-              </div>` : ''}
-          `;
-          card.appendChild(expBox);
+        let noteBox = card.querySelector('.note-box');
+        if (!noteBox) {
+          const noteText = cleanNoteText(q.note || q.explanation);
+          if (noteText) {
+            noteBox = document.createElement('div');
+            noteBox.className = 'note-box';
+            noteBox.innerHTML = `<strong>नोट:</strong> ${formatMarkdown(noteText)}`;
+            card.appendChild(noteBox);
+          }
         }
       }
     });
@@ -1366,14 +1393,16 @@
     if (isOneLiner) {
       // One-liner / Daily News view
       questions.forEach((q, idx) => {
+        const noteText = cleanNoteText(q.note || q.explanation);
         html += `
           <div class="oneliner-card">
             <span class="oneliner-badge">समाचार व रिवीज़न बिंदु #${idx + 1}</span>
             <div class="oneliner-text">${formatMarkdown(q.one_liner || q.question)}</div>
-            <div class="mnemonic-box" style="margin-top: 8px;">
-              <span>✨</span>
-              <div style="font-size: 12px;">${formatMarkdown(q.mnemonic)}</div>
-            </div>
+            ${noteText ? `
+              <div class="note-box" style="margin-top: 8px; font-size: 12.5px; padding: 8px 12px;">
+                <strong>नोट:</strong> ${formatMarkdown(noteText)}
+              </div>
+            ` : ''}
           </div>
         `;
       });
@@ -1431,15 +1460,14 @@
         html += `</div>`; // .mcq-options-list
 
         if (isPractice && hasAnswered) {
-          html += `
-            <div class="explanation-box">
-              ${formatMarkdown(q.explanation)}
-            </div>
-            <div class="mnemonic-box">
-              <span>✨</span>
-              <div>${formatMarkdown(q.mnemonic)}</div>
-            </div>
-          `;
+          const noteText = cleanNoteText(q.note || q.explanation);
+          if (noteText) {
+            html += `
+              <div class="note-box">
+                <strong>नोट:</strong> ${formatMarkdown(noteText)}
+              </div>
+            `;
+          }
         }
 
         html += `</div>`; // .mcq-card

@@ -44,8 +44,17 @@ window.TaiyariParser = window.DocParser = (function() {
   };
 
   function pickDistractors(ans, cat) {
-    const pool = DISTRACTORS[cat] || DISTRACTORS.district;
+    let pool = DISTRACTORS[cat];
     const ansClean = String(ans).trim();
+    if (!pool) {
+      for (const [k, arr] of Object.entries(DISTRACTORS)) {
+        if (arr.some(item => item.includes(ansClean) || ansClean.includes(item.split('(')[0].trim()))) {
+          pool = arr;
+          break;
+        }
+      }
+    }
+    if (!pool) pool = DISTRACTORS.indian_city;
     const cands = pool.filter(d => d.trim() !== ansClean);
     const shuffled = [...cands].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, 3);
@@ -245,8 +254,8 @@ window.TaiyariParser = window.DocParser = (function() {
           question: qText,
           options: options,
           correct_index: correctIdx,
-          explanation: `✅ **सही उत्तर:** ${coreAns}\n\n📌 **परीक्षा संदर्भ:** समसामयिकी ${displayDate}\n\n📖 **एग्जामिनर व्याख्या:** ${rawAns}`,
-          mnemonic: `💡 **याद रखने की ट्रिक:** मुख्य बिंदु '${coreAns}' को ध्यान में रखें।`,
+          note: rawAns || coreAns,
+          explanation: rawAns || coreAns,
           one_liner: `${qText} ➔ **${coreAns}**`
         });
         newlyAddedCount++;
@@ -378,18 +387,34 @@ window.TaiyariParser = window.DocParser = (function() {
         }
       }
 
-      // 5. General Key-Value lines
+      // 5. Intelligent Topic Key-Value lines (Never generate generic header questions)
+      const genericHeaders = ["विशेषता", "विवरण", "स्थान", "उद्देश्य", "परिचय", "महत्वपूर्ण तथ्य", "नोट", "प्रकार", "संदर्भ", "नाम", "उपाय", "कारण"];
       if (!qObj && line.includes(':')) {
         const parts = line.split(':');
         const k = parts[0].trim();
         const v = parts[1].trim();
-        if (k.length > 3 && k.length < 30 && v.length > 2 && v.length < 40) {
-          const cleanV = v.split('(')[0].split('।')[0].trim();
-          if (cleanV.length > 2) {
-            const q = k.includes("जिला")
-              ? `राजस्थान में '${k}' के रूप में किस जिले को जाना जाता है?`
-              : `राजस्थान सामान्य ज्ञान (${chapterTitle}) के अनुसार, '${k}' का सही मान / विवरण क्या है?`;
-            qObj = { q, ans: cleanV, cat: "district" };
+        if (k.length > 2 && k.length < 35 && v.length > 2 && v.length < 50) {
+          const isGeneric = genericHeaders.some(gh => k.toLowerCase() === gh || k.toLowerCase().startsWith(gh));
+          if (!isGeneric) {
+            const cleanV = v.split('(')[0].split('।')[0].trim();
+            if (cleanV.length >= 2 && !cleanV.includes('\n')) {
+              let cat = "district";
+              let q = `राजस्थान के संदर्भ में, '${k}' किससे संबंधित है?`;
+              if (DISTRACTORS.dam.some(d => line.includes(d.split(' ')[0]))) {
+                cat = "dam";
+                q = `'${k}' का संबंध राजस्थान के किस बांध या परियोजना से है?`;
+              } else if (DISTRACTORS.river.some(r => line.includes(r.split(' ')[0]))) {
+                cat = "river";
+                q = `'${k}' का संबंध राजस्थान की किस नदी से है?`;
+              } else if (DISTRACTORS.lake.some(l => line.includes(l.split(' ')[0]))) {
+                cat = "lake";
+                q = `'${k}' का संबंध किस झील से है?`;
+              } else if (DISTRACTORS.cm.some(cm => line.includes(cm))) {
+                cat = "cm";
+                q = `'${k}' का संबंध किस मुख्यमंत्री से है?`;
+              }
+              qObj = { q, ans: cleanV, cat };
+            }
           }
         }
       }
@@ -407,8 +432,8 @@ window.TaiyariParser = window.DocParser = (function() {
           question: qObj.q,
           options: opts,
           correct_index: correctIdx,
-          explanation: `✅ **सही उत्तर:** ${qObj.ans}\n\n📌 **परीक्षा संदर्भ:** ${chapterTitle}\n\n📖 **एग्जामिनर व्याख्या:** ${line}`,
-          mnemonic: `💡 **याद रखने की ट्रिक:** मुख्य बिंदु '${qObj.ans}' को ध्यान में रखें।`,
+          note: line,
+          explanation: line,
           one_liner: `${qObj.q} ➔ **${qObj.ans}**`
         });
       }
