@@ -1,0 +1,14 @@
+# Build outputs
+build/
+*.class
+*.idsig
+
+# Transient intermediate test files
+parsed_raj_geography_exhaustive.json
+parsed_raj_geography_examiner.json
+parsed_raj_geography_pure_examiner.json
+parsed_raj_geography.json
+parsed_national_ca.json
+crisp_raj_geography.json
+crisp_raj_geography_v2.json
+test_*.py

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="hi" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#2563eb">
+  <title>मेरी तैयारी • MCQ Prep</title>
+  <link rel="stylesheet" href="app.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+  <!-- Top App Header -->
+  <header class="app-header">
+    <div class="brand-wrapper">
+      <div class="brand-logo-badge">त</div>
+      <div class="brand-text">
+        <h1>मेरी तैयारी • MCQ Prep</h1>
+        <p>राजस्थान प्रतियोगी परीक्षा एवं LSA</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <div class="streak-pill" id="header-streak-badge" data-action="open-streak-info">
+        🔥 <span>6 दिन स्ट्रीक</span>
+      </div>
+      <div class="sync-status-pill" id="header-sync-status">
+        <span class="sync-dot"></span>
+        <span>🟢 ऑफलाइन तैयार</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="main-container">
+
+    <!-- ================= TAB 1: करंट अफेयर ================= -->
+    <section id="tab-ca" class="view-section active">
+      
+      <!-- 1. मुख्य पृष्ठ (केवल 2 मुख्य विकल्प: राष्ट्रीय/अंतरराष्ट्रीय और राजस्थान करंट अफेयर, यहाँ कैलेंडर नहीं दिखेगा) -->
+      <div id="ca-main-hub">
+        
+        <!-- Top Priority Card: आज की क्लास • ऑटो-कैच लाइव -->
+        <div class="glass-card today-priority-card">
+          <div class="glass-card-header">
+            <span class="live-badge">
+              <span class="pulse-dot"></span>
+              ऑटो-कैच लाइव
+            </span>
+            <button class="btn btn-secondary btn-sm" data-action="sync-today-class">
+              🔄 सिंक करें
+            </button>
+          </div>
+          <div class="today-content-box">
+            <div class="today-date-text" id="today-class-date">
+              20-नवंबर-2026 (आज की क्लास)
+            </div>
+            <div class="today-subtext" id="today-class-mcq-count">
+              ताज़ा अपडेट: 19-नवंबर के 10 MCQ तैयार हैं • 20-नवंबर लाइव क्लास
+            </div>
+          </div>
+          <div class="card-action-row">
+            <button class="btn btn-primary btn-full" data-action="open-today-class">
+              ⚡ आज के MCQ हल करें
+            </button>
+          </div>
+        </div>
+
+        <div style="margin: 16px 0 10px 0;">
+          <h2 style="font-size: 15px; font-weight: 700; color: var(--text-secondary);">करंट अफेयर्स विषय चुनें:</h2>
+        </div>
+
+        <!-- विकल्प 1: राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर -->
+        <div class="glass-card subject-card" data-action="open-ca-category" data-category="national_ca" style="padding: 20px; cursor: pointer;">
+          <div class="glass-card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="font-size: 34px; line-height: 1;">🇮🇳</div>
+              <div>
+                <h3 class="card-title" style="font-size: 17px; margin-bottom: 3px;">
+                  राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर
+                </h3>
+                <p style="font-size: 12px; color: var(--text-muted);">
+                  तारीख-वार कैलेंडर एवं दैनिक समसामयिकी प्रश्न
+                </p>
+              </div>
+            </div>
+            <span class="badge-count" id="badge-nat-ca-count">1101 प्रश्न • 125 तारीखें</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: var(--primary); font-weight: 600;">
+            <span>कैलेंडर में तारीख चुनें एवं प्रश्न हल करें →</span>
+            <span>📅</span>
+          </div>
+        </div>
+
+        <!-- विकल्प 2: राजस्थान करंट अफेयर -->
+        <div class="glass-card subject-card" data-action="open-ca-category" data-category="rajasthan_ca" style="padding: 20px; cursor: pointer;">
+          <div class="glass-card-header" style="margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div style="font-size: 34px; line-height: 1;">🏰</div>
+              <div>
+                <h3 class="card-title" style="font-size: 17px; margin-bottom: 3px;">
+                  राजस्थान करंट अफेयर
+                </h3>
+                <p style="font-size: 12px; color: var(--text-muted);">
+                  राजस्थान राज्य विशेष दैनिक तारीख-वार समसामयिकी
+                </p>
+              </div>
+            </div>
+            <span class="badge-unlinked" id="badge-raj-ca-count">0 प्रश्न • डॉक्यूमेंट लिंक नहीं है</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: var(--primary); font-weight: 600;">
+            <span>कैलेंडर में तारीख चुनें एवं प्रश्न हल करें →</span>
+            <span>📅</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. समर्पित कैलेंडर व तारीख-वार विवरण स्क्रीन (कैटेगरी पर टैप करने के बाद यहाँ दिखाई देगी) -->
+      <div id="ca-category-detail" style="display: none;">
+        
+        <!-- Header with Back Button and Category Title -->
+        <div class="glass-card" style="padding: 14px 16px; margin-bottom: 12px;">
+          <div class="glass-card-header" style="margin-bottom: 0;">
+            <button class="btn btn-secondary btn-sm" data-action="back-to-ca-hub">
+              ← वापस (करंट अफेयर)
+            </button>
+            <button class="btn btn-secondary btn-sm" data-action="sync-current-affairs">
+              🔄 सिंक करें
+            </button>
+          </div>
+          <div style="margin-top: 10px;">
+            <h2 id="ca-detail-title" style="font-size: 18px; font-weight: 800; line-height: 1.2;">
+              राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर
+            </h2>
+            <p id="ca-detail-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 3px;">
+              कैलेंडर में किसी भी तारीख पर टैप करें, उस तारीख के प्रश्न एवं नोट्स ठीक नीचे लोड होंगे
+            </p>
+          </div>
+        </div>
+
+        <!-- Interactive Date-Wise Calendar Card -->
+        <div class="glass-card calendar-card" id="calendar-section">
+          <div class="calendar-header-nav">
+            <div class="calendar-month-title">
+              <span>📅</span>
+              <select class="form-select" id="cal-month-select" data-action="select-cal-month" style="width: auto; padding: 4px 8px; font-weight: 700;">
+                <option value="2026-11">नवंबर 2026</option>
+                <option value="2026-10">अक्टूबर 2026</option>
+                <option value="2026-09">सितंबर 2026</option>
+                <option value="2026-08">अगस्त 2026</option>
+                <option value="2026-07">जुलाई 2026</option>
+              </select>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-secondary btn-sm" data-action="cal-prev-month">◀</button>
+              <button class="btn btn-secondary btn-sm" data-action="cal-next-month">▶</button>
+            </div>
+          </div>
+
+          <!-- Weekdays Row -->
+          <div class="calendar-weekdays">
+            <div>सोम</div><div>मंगल</div><div>बुध</div><div>गुरु</div><div>शुक्र</div><div>शनि</div><div>रवि</div>
+          </div>
+
+          <!-- 7-Column Days Grid -->
+          <div class="calendar-grid" id="calendar-days-grid">
+            <!-- Populated dynamically by app.js -->
+          </div>
+        </div>
+
+        <!-- Date-Range Mega Revision Tests -->
+        <div class="glass-card mega-revision-card" style="margin-bottom: 16px;">
+          <div class="glass-card-header">
+            <h3 class="card-title" style="color: #4f46e5;">
+              <span>⚡</span> तारीख-रेंज मेगा रिवीज़न टेस्ट
+            </h3>
+            <span class="badge-count" style="background: rgba(79, 70, 229, 0.15); color: #4f46e5;">साप्ताहिक व मासिक</span>
+          </div>
+          <div class="mega-btn-group">
+            <button class="btn btn-secondary btn-full" data-action="launch-mega-test" data-type="last_7_days">
+              ⏱️ पिछले 7 दिन (साप्ताहिक)
+            </button>
+            <button class="btn btn-primary btn-full" data-action="launch-mega-test" data-type="full_month">
+              🏆 पूरा महीना (1 से 20)
+            </button>
+          </div>
+        </div>
+
+        <!-- Date-Specific Content Directly Below Calendar -->
+        <div id="ca-date-content-container">
+          <!-- Populated when user taps any date in calendar! -->
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 2: राजस्थान जीके ================= -->
+    <section id="tab-gk" class="view-section">
+      
+      <!-- Sub-tabs bar: No dates! -->
+      <div class="subtab-bar">
+        <button class="subtab-btn active" data-action="switch-gk-subtab" data-subcat="geography">
+          🗺️ राजस्थान भूगोल
+        </button>
+        <button class="subtab-btn" data-action="switch-gk-subtab" data-subcat="art_culture">
+          🎭 कला एवं संस्कृति
+        </button>
+        <button class="subtab-btn" data-action="switch-gk-subtab" data-subcat="history">
+          ⚔️ राजस्थान इतिहास
+        </button>
+      </div>
+
+      <!-- Chapter-wise List -->
+      <div id="gk-chapters-list">
+        <!-- Rendered if linked -->
+      </div>
+
+      <!-- Empty State / Zero-Fabrication Prompt -->
+      <div class="empty-state-box" id="gk-empty-state">
+        <span class="empty-icon">📂</span>
+        <h4 id="gk-empty-category-name">राजस्थान भूगोल</h4>
+        <p><strong>0 प्रश्न • डॉक्यूमेंट लिंक नहीं है</strong><br>इस विषय के लिए अभी कोई गूगल डॉक लिंक नहीं किया गया है।</p>
+        <button class="btn btn-primary" data-action="prompt-add-doc" data-target="geography">
+          सेटिंग्स में डॉक्यूमेंट जोड़ें →
+        </button>
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 3: सब्जेक्ट (LSA Veterinary) ================= -->
+    <section id="tab-lsa" class="view-section">
+      
+      <div style="margin-bottom: 12px;">
+        <h2 style="font-size: 16px; font-weight: 700;">पशुधन सहायक (LSA) डिप्लोमा विषय</h2>
+        <p style="font-size: 12px; color: var(--text-muted);">सभी 10 वेटरनरी विषय • अध्याय-वार अभ्यास (शून्य डमी प्रश्न नियम)</p>
+      </div>
+
+      <div id="lsa-subjects-container">
+        <!-- 10 Veterinary Subjects populated dynamically -->
+      </div>
+
+    </section>
+
+    <!-- ================= TAB 4: सेटिंग्स ================= -->
+    <section id="tab-settings" class="view-section">
+
+      <!-- 1. Add & Manage Google Docs -->
+      <div class="glass-card" id="add-doc-card">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>📄</span> डॉक्यूमेंट ऐड एवं मैनेज करें
+          </h3>
+          <span class="badge-count">स्मार्ट पार्सर</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+          गूगल डॉक्स URL या टेक्स्ट नोट्स जोड़ें। करंट अफेयर्स में तारीखें स्वतः पहचान ली जाती हैं।
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">टारगेट विषय / श्रेणी चुनें:</label>
+          <select class="form-select" id="target-category-select">
+            <optgroup label="करंट अफेयर">
+              <option value="national_ca">राष्ट्रीय एवं अंतरराष्ट्रीय करंट अफेयर</option>
+              <option value="rajasthan_ca">राजस्थान करंट अफेयर</option>
+            </optgroup>
+            <optgroup label="राजस्थान सामान्य ज्ञान">
+              <option value="geography">राजस्थान भूगोल (Geography)</option>
+              <option value="art_culture">कला एवं संस्कृति (Art & Culture)</option>
+              <option value="history">राजस्थान इतिहास (History)</option>
+            </optgroup>
+            <optgroup label="LSA वेटरनरी 10 विषय">
+              <option value="lsa_anatomy">1. वेटरनरी एनाटॉमी</option>
+              <option value="lsa_physiology">2. वेटरनरी फिजियोलॉजी</option>
+              <option value="lsa_nutrition">3. पशु पोषण</option>
+              <option value="lsa_lpm">4. पशुधन उत्पादन एवं प्रबंधन (LPM)</option>
+              <option value="lsa_pharmacology">5. वेटरनरी फार्माकोलॉजी एवं टॉक्सिकोलॉजी</option>
+              <option value="lsa_medicine">6. वेटरनरी मेडिसिन</option>
+              <option value="lsa_surgery">7. वेटरनरी सर्जरी एवं रेडियोलॉजी</option>
+              <option value="lsa_gynecology">8. पशु प्रजनन एवं स्त्री रोग विज्ञान</option>
+              <option value="lsa_genetics">9. पशु आनुवंशिकी एवं प्रजनन</option>
+              <option value="lsa_extension">10. प्रसार शिक्षा एवं पशुपालन अर्थशास्त्र</option>
+            </optgroup>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">गूगल डॉक्स URL:</label>
+          <input type="url" class="form-input" id="doc-url-input" placeholder="https://docs.google.com/document/d/.../edit">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">अध्याय शीर्षक (जीके / LSA हेतु):</label>
+          <input type="text" class="form-input" id="chapter-title-input" placeholder="उदा. भौतिक प्रदेश / पाचन तंत्र (वैकल्पिक)">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">या सीधे नोट्स टेक्स्ट पेस्ट करें (ऑफलाइन / प्राइवेट डॉक):</label>
+          <textarea class="form-textarea" id="raw-text-input" rows="3" placeholder="यहाँ प्रश्न/उत्तर या दैनिक नोट्स पेस्ट करें..."></textarea>
+        </div>
+
+        <button class="btn btn-primary btn-full" id="btn-save-doc">
+          🔄 इंक्रीमेंटल री-सिंक एवं सेव करें
+        </button>
+
+        <div id="doc-sync-status-msg" style="display: none; margin-top: 10px; font-size: 13px; font-weight: 600;"></div>
+
+        <!-- Linked Docs Table -->
+        <div style="margin-top: 18px;">
+          <h4 style="font-size: 13px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">लिंक किए गए डॉक्यूमेंट:</h4>
+          <div style="overflow-x: auto;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 13px;">
+              <thead>
+                <tr style="text-align: left; color: var(--text-muted); border-bottom: 1.5px solid var(--glass-border);">
+                  <th style="padding: 6px 8px;">विषय</th>
+                  <th style="padding: 6px 8px;">MCQ संख्या</th>
+                  <th style="padding: 6px 8px;">स्थिति</th>
+                </tr>
+              </thead>
+              <tbody id="linked-docs-tbody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 2. Wrong Answer Vault -->
+      <div class="glass-card" style="border-left: 4px solid var(--danger);">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>🚨</span> गलत सवाल (Wrong Answer Vault)
+          </h3>
+          <span class="badge-count" id="vault-count-badge" style="background: var(--danger-bg); color: var(--danger);">0 प्रश्न</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          प्रैक्टिस या एग्जाम में गलत हुए सवाल यहाँ स्वतः सहेजे जाते हैं। री-टेस्ट में सही उत्तर देने पर सवाल तिजोरी से हट जाता है।
+        </p>
+        <button class="btn btn-secondary btn-full" data-action="open-wrong-vault">
+          ⚡ गलत सवालों का री-टेस्ट शुरू करें
+        </button>
+      </div>
+
+      <!-- 3. Saved Bookmarks -->
+      <div class="glass-card" style="border-left: 4px solid var(--accent-orange);">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>★</span> बुकमार्क सवाल (Saved Bookmarks)
+          </h3>
+          <span class="badge-count" id="bookmarks-count-badge" style="background: var(--accent-orange-light); color: var(--accent-orange);">0 प्रश्न</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          कठिन या महत्वपूर्ण सवाल जिन्हें आपने त्वरित रिवीज़न के लिए बुकमार्क किया है।
+        </p>
+        <button class="btn btn-secondary btn-full" data-action="open-bookmarks">
+          📖 बुकमार्क सवालों का रिवीज़न करें
+        </button>
+      </div>
+
+      <!-- 4. In-App Live Update -->
+      <div class="glass-card">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>🚀</span> इन-ऐप अपडेट (Live Update)
+          </h3>
+          <span class="badge-count">v2.1.0</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+          नवीनतम करंट अफेयर्स पैच और RPSC/RSSB सिलेबस अपडेट सीधे ऐप में इंस्टॉल करें।
+        </p>
+        <button class="btn btn-primary btn-full" id="btn-check-update" data-action="check-in-app-update">
+          🔄 अपडेट चेक व इंस्टॉल करें
+        </button>
+        <div class="update-progress-container" id="update-progress-box">
+          <div class="progress-track">
+            <div class="progress-fill" id="update-progress-fill"></div>
+          </div>
+          <div class="progress-status-msg" id="update-status-text">अपडेट प्रारंभ हो रहा है...</div>
+        </div>
+      </div>
+
+      <!-- 5. Theme & Offline Storage -->
+      <div class="glass-card">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>⚙️</span> थीम व ऑफलाइन लोकल कैश
+          </h3>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">थीम का चयन करें:</label>
+          <select class="form-select" id="settings-theme-select">
+            <option value="light">☀️ Light Liquid Glass (दिन के लिए)</option>
+            <option value="dark">🌙 Dark Liquid Glass (आँखों के लिए आरामदायक)</option>
+          </select>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin: 12px 0;">
+          <span style="color: var(--text-muted);">कुल ऑफलाइन MCQs:</span>
+          <span style="font-weight: 700;" id="stat-total-mcqs">1101 MCQs</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-size: 13px; margin: 12px 0;">
+          <span style="color: var(--text-muted);">लोकल स्टोरेज स्थिति:</span>
+          <span style="font-weight: 700; color: var(--success);" id="stat-storage-size">2.4 MB / 100% ऑफलाइन कैश</span>
+        </div>
+
+        <div class="card-action-row" style="margin-top: 14px;">
+          <button class="btn btn-secondary btn-full" data-action="export-backup-json">
+            💾 बैकअप JSON एक्सपोर्ट
+          </button>
+          <button class="btn btn-secondary btn-full" data-action="clear-cache" style="color: var(--danger);">
+            🗑️ कैश रीसेट करें
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ================= QUIZ & STUDY WORKSPACE VIEW ================= -->
+    <section id="view-workspace" class="view-section">
+      
+      <!-- Top Navigation & Title Bar -->
+      <div class="glass-card">
+        <div class="glass-card-header">
+          <button class="btn btn-secondary btn-sm" data-action="close-workspace">
+            ← वापस जाएं
+          </button>
+          <button class="btn btn-secondary btn-sm" data-action="open-print-modal">
+            🖨️ A4 PDF एक्सपोर्ट
+          </button>
+        </div>
+        <h2 id="workspace-title" style="font-size: 16px; font-weight: 800; line-height: 1.3;">-</h2>
+        <p id="workspace-subtitle" style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">-</p>
+      </div>
+
+      <!-- Controls: View Switcher & Mode Switcher -->
+      <div class="view-mode-toggles">
+        <div class="segmented-control">
+          <button class="segment-btn active" data-action="switch-quiz-view" data-view="mcq">
+            📝 MCQ अभ्यास
+          </button>
+          <button class="segment-btn" data-action="switch-quiz-view" data-view="oneliner">
+            📖 वन-लाइनर नोट्स
+          </button>
+        </div>
+
+        <div class="segmented-control">
+          <button class="segment-btn active" data-action="switch-quiz-mode" data-mode="practice">
+            ⚡ प्रैक्टिस मोड
+          </button>
+          <button class="segment-btn" data-action="switch-quiz-mode" data-mode="exam">
+            ⏱️ एग्जाम मोड
+          </button>
+        </div>
+      </div>
+
+      <!-- Exam Timer Bar (Visible only in Exam mode) -->
+      <div class="exam-timer-bar" id="exam-timer-bar" style="display: none; margin-top: 14px;">
+        <div class="timer-display">
+          <span>⏳</span>
+          <span id="exam-timer-text">00:00</span>
+        </div>
+        <div class="marking-info-tag">
+          RPSC/RSSB: +2 सही | -0.67 निगेटिव (1/3)
+        </div>
+      </div>
+
+      <!-- Exam Question Palette (Visible only in Exam mode) -->
+      <div id="exam-palette-container" style="display: none;">
+        <div class="exam-palette" id="exam-palette-grid">
+          <!-- Populated dynamically -->
+        </div>
+      </div>
+
+      <!-- Questions Container -->
+      <div id="workspace-mcq-list" style="margin-top: 16px;">
+        <!-- MCQ cards populated dynamically -->
+      </div>
+
+      <!-- One-Liners Container -->
+      <div id="workspace-oneliner-list" style="display: none; margin-top: 16px;">
+        <!-- One liner cards populated dynamically -->
+      </div>
+
+      <!-- Submit Exam Button -->
+      <div id="btn-submit-exam" style="display: none; margin-top: 16px;">
+        <button class="btn btn-primary btn-full" data-action="submit-exam" style="padding: 14px; font-size: 16px;">
+          🏁 परीक्षा सबमिट करें व स्कोरकार्ड देखें
+        </button>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ================= FIXED 4-TAB BOTTOM NAVIGATION BAR ================= -->
+  <nav class="bottom-nav-bar">
+    <button class="nav-tab-btn active" data-tab="tab-ca">
+      <svg viewBox="0 0 24 24"><path d="M19 4H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM16 2v4M8 2v4M3 10h18"/></svg>
+      <span>करंट अफेयर</span>
+    </button>
+    <button class="nav-tab-btn" data-tab="tab-gk">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <span>जीके</span>
+    </button>
+    <button class="nav-tab-btn" data-tab="tab-lsa">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+      <span>सब्जेक्ट</span>
+    </button>
+    <button class="nav-tab-btn" data-tab="tab-settings">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>सेटिंग्स</span>
+    </button>
+  </nav>
+
+  <!-- ================= MODALS ================= -->
+
+  <!-- Scorecard Modal -->
+  <div class="modal-overlay" id="scorecard-modal">
+    <div class="modal-sheet">
+      <div class="modal-title">
+        <span>🏆</span> परीक्षा स्कोरकार्ड (RPSC / RSSB)
+      </div>
+      <p style="font-size: 13px; color: var(--text-secondary);">
+        1/3 निगेटिव मार्किंग (-0.67 अंक) के साथ अंतिम परिणाम:
+      </p>
+
+      <div class="scorecard-stats-grid">
+        <div class="stat-metric-card">
+          <div class="metric-num" id="score-total-val">0</div>
+          <div class="metric-label">कुल प्राप्तांक</div>
+        </div>
+        <div class="stat-metric-card">
+          <div class="metric-num" style="color: var(--success);" id="score-correct-val">0</div>
+          <div class="metric-label">सही उत्तर (+2)</div>
+        </div>
+        <div class="stat-metric-card">
+          <div class="metric-num" style="color: var(--danger);" id="score-wrong-val">0</div>
+          <div class="metric-label">गलत उत्तर (-0.67)</div>
+        </div>
+      </div>
+
+      <div class="scorecard-stats-grid">
+        <div class="stat-metric-card">
+          <div class="metric-num" style="color: var(--text-muted);" id="score-unattempted-val">0</div>
+          <div class="metric-label">अनुत्तरित (0)</div>
+        </div>
+        <div class="stat-metric-card" style="grid-column: span 2;">
+          <div class="metric-num" style="color: var(--primary);" id="score-accuracy-val">0%</div>
+          <div class="metric-label">सटीकता (Accuracy %)</div>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-full" data-action="close-scorecard-modal" style="margin-top: 10px;">
+        📖 सभी प्रश्नों की व्याख्या देखें
+      </button>
+    </div>
+  </div>
+
+  <!-- Print Layout Selection Modal -->
+  <div class="modal-overlay" id="print-modal">
+    <div class="modal-sheet">
+      <div class="modal-title">
+        <span>🖨️</span> प्रिंट-रेडी A4 PDF एक्सपोर्ट
+      </div>
+      <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+        परीक्षा रिवीज़न के लिए प्रिंट लेआउट चुनें (बिना किसी वीडियो टाइमस्टैम्प के स्वच्छ A4 लेआउट):
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <button class="btn btn-primary btn-full" data-action="trigger-print" data-layout="1-col">
+          📄 फुल A4 (1-कॉलम विस्तृत लेआउट)
+        </button>
+        <button class="btn btn-secondary btn-full" data-action="trigger-print" data-layout="2-col">
+          📑 हाफ-पेज A4 (2-कॉलम कॉम्पैक्ट प्रिंट)
+        </button>
+        <button class="btn btn-secondary btn-full" data-action="close-print-modal" style="margin-top: 6px;">
+          रद्द करें
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Streak Info Modal -->
+  <div class="modal-overlay" id="streak-modal">
+    <div class="modal-sheet">
+      <div class="modal-title">
+        <span>🔥</span> दैनिक अध्ययन स्ट्रीक
+      </div>
+      <p style="font-size: 14px; line-height: 1.6; color: var(--text-secondary);">
+        आपकी वर्तमान स्ट्रीक <strong>सक्रिय</strong> है! प्रतिदिन करंट अफेयर्स या विषयवार MCQ हल करने से आपकी परीक्षा स्मरण शक्ति 4x बढ़ती है।
+      </p>
+      <div style="background: var(--accent-orange-light); border-radius: var(--radius-md); padding: 14px; margin: 14px 0; text-align: center;">
+        <div style="font-size: 28px; font-weight: 800; color: var(--accent-orange);">🔥 लगातार अभ्यास</div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-top: 4px;">RPSC / RSSB चयन का मूल मंत्र: निरंतरता</div>
+      </div>
+      <button class="btn btn-primary btn-full" data-action="close-streak-modal">
+        समझ गया, अभ्यास जारी रखें
+      </button>
+    </div>
+  </div>
+
+  <!-- Clean Print Area (Hidden on screen, populated dynamically for window.print()) -->
+  <div id="print-area-content"></div>
+
+  <!-- Scripts: Initial Data -> Parser Engine -> App Controller -->
+  <script src="initial_data.js"></script>
+  <script src="parser.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
