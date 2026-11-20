@@ -114,11 +114,12 @@
     try {
       const savedDbStr = localStorage.getItem(STORAGE_KEYS.DB);
       let needsReset = false;
-      const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "3.2.0";
+      const requiredVersion = (window.INITIAL_DATA && window.INITIAL_DATA.config && window.INITIAL_DATA.config.version) || "3.4.0";
       if (savedDbStr) {
         const parsed = JSON.parse(savedDbStr);
         if (!parsed.config || parsed.config.version !== requiredVersion) {
           needsReset = true;
+          console.log(`[Storage] Version mismatch (found ${parsed.config ? parsed.config.version : 'none'}, required ${requiredVersion}). Resetting to clean v3.4.0 database.`);
         } else {
           AppState.db = parsed;
         }
@@ -131,7 +132,7 @@
       }
 
       // Ensure all dates and curated subjects are always present
-      if (window.INITIAL_DATA) {
+      if (window.INITIAL_DATA && !needsReset) {
         ['national_ca', 'rajasthan_ca'].forEach(cat => {
           if (window.INITIAL_DATA[cat] && window.INITIAL_DATA[cat].dates) {
             if (!AppState.db[cat]) AppState.db[cat] = JSON.parse(JSON.stringify(window.INITIAL_DATA[cat]));

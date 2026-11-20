@@ -12,3 +12,4 @@ parsed_national_ca.json
 crisp_raj_geography.json
 crisp_raj_geography_v2.json
 test_*.py
+__pycache__/
