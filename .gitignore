@@ -21,3 +21,6 @@ raw_raj_history.txt
 generate_exhaustive_art_culture_gemini.py
 gemini_exhaustive_art_culture_cache.json
 raw_raj_art_culture.txt
+generate_ultradense_geography_gemini.py
+gemini_ultradense_geo_cache.json
+finish_ch18_to_23.py
