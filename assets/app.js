@@ -51,7 +51,8 @@
     VAULT: 'mt_wrong_vault',
     BOOKMARKS: 'mt_bookmarks',
     MASTERY: 'mt_mastery_stats',
-    GEMINI_KEY: 'mt_gemini_api_key'
+    GEMINI_KEY: 'mt_gemini_api_key',
+    PRACTICE_ANSWERS: 'mt_practice_answers'
   };
 
   const DEFAULT_GEMINI_KEY = atob('QVEuQWI4Uk42SzZscU9RR3cyTHhyc3NkenphNkRRbTVybVNrcDBFTkZtX3B2OVFyZW03Unc=');
@@ -111,6 +112,13 @@
       AppState.wrongVault = {};
       AppState.bookmarks = {};
       AppState.masteryStats = {};
+    }
+
+    // Practice Answers (Persisted across sessions)
+    try {
+      AppState.practiceAnswers = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRACTICE_ANSWERS) || '{}');
+    } catch (e) {
+      AppState.practiceAnswers = {};
     }
 
     // Database
@@ -181,6 +189,14 @@
 
   function saveMastery() {
     localStorage.setItem(STORAGE_KEYS.MASTERY, JSON.stringify(AppState.masteryStats));
+  }
+
+  function savePracticeAnswers() {
+    try {
+      localStorage.setItem(STORAGE_KEYS.PRACTICE_ANSWERS, JSON.stringify(AppState.practiceAnswers));
+    } catch (e) {
+      console.warn("Storage quota exceeded or error saving practice answers:", e);
+    }
   }
 
   function applyTheme(theme) {
@@ -498,6 +514,9 @@
       const dateKey = `${year}-${String(month).padStart(2, '0')}-${dayPad}`;
       const dayData = activeDates[dateKey];
       const qCount = dayData ? dayData.questions.length : 0;
+      const attempted = (dayData && dayData.questions)
+        ? dayData.questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length
+        : 0;
       
       const hasQ = qCount > 0;
       const isToday = (dateKey === '2026-11-20');
@@ -506,6 +525,8 @@
       const cellClasses = [
         'calendar-cell',
         hasQ ? 'has-questions' : '',
+        attempted > 0 ? 'is-practiced' : '',
+        attempted === qCount && qCount > 0 ? 'is-completed' : '',
         isToday ? 'is-today' : '',
         isSelected ? 'selected' : ''
       ].filter(Boolean).join(' ');
@@ -513,7 +534,7 @@
       html += `
         <div class="${cellClasses}" data-action="select-calendar-date" data-date="${dateKey}" data-has-q="${hasQ}">
           <span class="cell-day-num">${day}</span>
-          <span class="cell-q-count ${qCount === 0 ? 'zero' : ''}">${qCount > 0 ? qCount + ' Q' : '0'}</span>
+          <span class="cell-q-count ${qCount === 0 ? 'zero' : ''}">${attempted > 0 ? `${attempted}/${qCount}` : (qCount > 0 ? qCount + ' Q' : '0')}</span>
         </div>
       `;
     }
@@ -543,14 +564,23 @@
       
       let html = '';
       catData.chapters.forEach((ch, idx) => {
-        const mastery = AppState.masteryStats[ch.id] || { total: ch.questions.length, correct: 0 };
-        const percent = ch.questions.length > 0 ? Math.round((mastery.correct / ch.questions.length) * 100) : 0;
+        const totalQ = ch.questions.length;
+        const attempted = ch.questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length;
+        const correct = ch.questions.filter(q => AppState.practiceAnswers[q.id] === q.correct_index).length;
+        const percent = totalQ > 0 ? Math.round((attempted / totalQ) * 100) : 0;
+
+        let statusBadge = '';
+        if (attempted === totalQ && totalQ > 0) {
+          statusBadge = `<span style="font-size: 11px; background: rgba(16, 185, 129, 0.15); color: #059669; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 6px;">✓ पूर्ण (${correct}/${totalQ})</span>`;
+        } else if (attempted > 0) {
+          statusBadge = `<span style="font-size: 11px; background: rgba(99, 102, 241, 0.12); color: var(--primary); padding: 2px 6px; border-radius: 4px; font-weight: 600; margin-left: 6px;">${attempted}/${totalQ} हल किए</span>`;
+        }
 
         html += `
           <div class="chapter-item" data-action="open-gk-chapter" data-subcat="${currentGkSubcategory}" data-chapter-id="${ch.id}">
             <div class="chapter-info">
-              <h3>${ch.title}</h3>
-              <p>${ch.questions.length} प्रश्न उपलब्ध • अध्याय-वार अभ्यास</p>
+              <h3>${ch.title} ${statusBadge}</h3>
+              <p>${ch.questions.length} प्रश्न उपलब्ध • ${attempted > 0 ? `${correct} सही उत्तर दर्ज` : 'अध्याय-वार अभ्यास'}</p>
             </div>
             <div class="mastery-meter-container">
               <div class="meter-bar-bg">
@@ -576,8 +606,18 @@
     Object.values(subjects).forEach(subj => {
       const isLinked = subj.linked && subj.chapters && subj.chapters.length > 0;
       let totalQ = 0;
+      let attemptedQ = 0;
+      let correctQ = 0;
       if (isLinked) {
-        subj.chapters.forEach(c => totalQ += c.questions.length);
+        subj.chapters.forEach(c => {
+          totalQ += c.questions.length;
+          c.questions.forEach(q => {
+            if (AppState.practiceAnswers[q.id] !== undefined) {
+              attemptedQ++;
+              if (AppState.practiceAnswers[q.id] === q.correct_index) correctQ++;
+            }
+          });
+        });
       }
 
       html += `
@@ -585,13 +625,13 @@
           <div class="glass-card-header">
             <h3 class="card-title">${subj.title}</h3>
             ${isLinked 
-              ? `<span class="badge-count">${totalQ} प्रश्न उपलब्ध</span>` 
+              ? `<span class="badge-count">${attemptedQ > 0 ? `${attemptedQ}/${totalQ} हल किए (${correctQ} सही)` : `${totalQ} प्रश्न उपलब्ध`}</span>` 
               : `<span class="badge-unlinked">0 प्रश्न • डॉक्यूमेंट लिंक नहीं है</span>`
             }
           </div>
           <div class="subject-card-meta">
             ${isLinked 
-              ? `<span>अध्याय संख्या: ${subj.chapters.length}</span> • <span>मास्टरी मीटर सक्रिय</span>`
+              ? `<span>अध्याय संख्या: ${subj.chapters.length}</span> • <span>${attemptedQ === totalQ && totalQ > 0 ? '✓ पूर्ण अभ्यास' : 'मास्टरी मीटर सक्रिय'}</span>`
               : `<span>डॉक्यूमेंट लिंक करने पर तुरंत अध्याय व MCQ तैयार होंगे</span>`
             }
           </div>
@@ -741,9 +781,27 @@
   }
 
   // ================= QUIZ WORKSPACE CONTROLLER =================
+  function updateWorkspaceHeaderInfo() {
+    if (!AppState.activeContext || !AppState.activeContext.questions) return;
+    const questions = AppState.activeContext.questions;
+    const attempted = questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length;
+    const correct = questions.filter(q => AppState.practiceAnswers[q.id] === q.correct_index).length;
+
+    const titleEl = document.getElementById('workspace-title');
+    const subEl = document.getElementById('workspace-subtitle');
+    if (titleEl) titleEl.textContent = AppState.activeContext.title;
+    if (subEl) {
+      if (attempted > 0) {
+        subEl.textContent = `कुल ${questions.length} में से ${attempted} हल किए (${correct} सही) • RPSC / RSSB एग्जाम स्तर`;
+      } else {
+        subEl.textContent = `${questions.length} प्रश्न उपलब्ध • RPSC / RSSB एग्जाम स्तर`;
+      }
+    }
+  }
+
   function openQuizWorkspace(context, pushHistory = true) {
     AppState.activeContext = context;
-    AppState.practiceAnswers = {};
+    // Practice answers are permanently preserved in localStorage; exam answers reset per attempt
     AppState.examAnswers = {};
     clearInterval(AppState.examTimerId);
     if (pushHistory) {
@@ -756,8 +814,7 @@
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     // Update Workspace Headers
-    document.getElementById('workspace-title').textContent = context.title;
-    document.getElementById('workspace-subtitle').textContent = `${context.questions.length} प्रश्न उपलब्ध • RPSC / RSSB एग्जामिनर स्तर`;
+    updateWorkspaceHeaderInfo();
 
     // Reset controls
     setQuizView('mcq');
@@ -1032,6 +1089,7 @@
       // In practice mode, allow clicking once or changing
       if (AppState.practiceAnswers[qId] !== undefined) return; // locked after first answer
       AppState.practiceAnswers[qId] = optIdx;
+      savePracticeAnswers();
 
       const isCorrect = (optIdx === q.correct_index);
 
@@ -1052,7 +1110,7 @@
       }
 
       // Update Mastery stats
-      const masterKey = (AppState.activeContext && AppState.activeContext.dateKey) || AppState.activeCaDateKey || 'general';
+      const masterKey = (AppState.activeContext && (AppState.activeContext.chapterId || AppState.activeContext.dateKey)) || AppState.activeCaDateKey || 'general';
       if (!AppState.masteryStats[masterKey]) {
         AppState.masteryStats[masterKey] = { total: 0, correct: 0 };
       }
@@ -1062,6 +1120,7 @@
 
       // Instant visual feedback on the card
       updateCardUI(q, qId, optIdx, true);
+      updateWorkspaceHeaderInfo();
 
       if (DOM.viewWorkspace && DOM.viewWorkspace.classList.contains('active')) {
         renderQuizContent();
@@ -1124,8 +1183,10 @@
 
     // Switch to practice view so user can review every answer with AI explanations
     setQuizMode('practice');
-    AppState.practiceAnswers = Object.assign({}, AppState.examAnswers);
+    Object.assign(AppState.practiceAnswers, AppState.examAnswers);
+    savePracticeAnswers();
     renderQuizContent();
+    updateWorkspaceHeaderInfo();
   }
 
   // ================= ACTION HANDLER =================
@@ -1271,6 +1332,45 @@
         }
         break;
       }
+      case 'reset-chapter-answers': {
+        if (!AppState.activeContext || !AppState.activeContext.questions) return;
+        const questions = AppState.activeContext.questions;
+        const attempted = questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length;
+        if (attempted === 0) {
+          alert('इस अध्याय में अभी कोई उत्तर दर्ज नहीं है।');
+          return;
+        }
+        if (confirm(`क्या आप इस अध्याय के सभी ${attempted} हल किए गए प्रश्नों को री-सेट करना चाहते हैं ताकि दोबारा अभ्यास कर सकें?`)) {
+          questions.forEach(q => {
+            delete AppState.practiceAnswers[q.id];
+          });
+          savePracticeAnswers();
+          updateWorkspaceHeaderInfo();
+          renderQuizContent();
+          renderRajasthanGkTab();
+        }
+        break;
+      }
+      case 'reset-date-answers': {
+        const dateKey = el.getAttribute('data-date') || AppState.activeCaDateKey;
+        if (!dateKey) return;
+        const catKey = AppState.currentCaCategory || 'national_ca';
+        const dayData = AppState.db[catKey]?.dates?.[dateKey];
+        if (!dayData || !dayData.questions) return;
+        const attempted = dayData.questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length;
+        if (attempted === 0) {
+          alert('इस तारीख के लिए अभी कोई उत्तर दर्ज नहीं है।');
+          return;
+        }
+        if (confirm(`क्या आप ${dayData.display_date} के सभी ${attempted} हल किए गए प्रश्नों को री-सेट करना चाहते हैं?`)) {
+          dayData.questions.forEach(q => {
+            delete AppState.practiceAnswers[q.id];
+          });
+          savePracticeAnswers();
+          handleCalendarDateTap(dateKey);
+        }
+        break;
+      }
       case 'close-scorecard-modal': {
         DOM.scorecardModal.classList.remove('active');
         break;
@@ -1373,6 +1473,8 @@
     const questions = dayData.questions;
     const isOneLiner = (AppState.quizView === 'oneliner');
     const isExam = (AppState.quizMode === 'exam');
+    const attemptedCount = questions.filter(q => AppState.practiceAnswers[q.id] !== undefined).length;
+    const correctCount = questions.filter(q => AppState.practiceAnswers[q.id] === q.correct_index).length;
 
     let html = `
       <div class="glass-card" style="margin-top: 14px; animation: fadeInView 0.25s ease-out;">
@@ -1382,12 +1484,19 @@
               📅 ${dayData.display_date} के समाचार एवं प्रश्न
             </h3>
             <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
-              कुल ${questions.length} प्रश्न एवं रिवीज़न बिंदु • RPSC / RSSB एग्जामिनर स्तर
+              ${attemptedCount > 0 ? `कुल ${questions.length} में से ${attemptedCount} हल किए (${correctCount} सही) • ` : `कुल ${questions.length} प्रश्न उपलब्ध • `}RPSC / RSSB एग्जामिनर स्तर
             </p>
           </div>
-          <button class="btn btn-secondary btn-sm" data-action="open-full-workspace">
-            🖨️ A4 PDF एक्सपोर्ट / फुल स्क्रीन
-          </button>
+          <div style="display: flex; gap: 6px;">
+            ${attemptedCount > 0 ? `
+              <button class="btn btn-secondary btn-sm" data-action="reset-date-answers" data-date="${dayData.date}" title="दोबारा हल करने के लिए री-सेट करें">
+                🔄 पुनः हल करें
+              </button>
+            ` : ''}
+            <button class="btn btn-secondary btn-sm" data-action="open-full-workspace">
+              🖨️ फुल स्क्रीन / PDF
+            </button>
+          </div>
         </div>
 
         <!-- View & Mode Toggles -->

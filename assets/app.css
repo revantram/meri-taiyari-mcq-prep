@@ -454,6 +454,20 @@ body {
   border-color: rgba(37, 99, 235, 0.35);
 }
 
+.calendar-cell.is-practiced {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.calendar-cell.is-practiced .cell-q-count {
+  color: #059669;
+}
+
+.calendar-cell.is-completed {
+  border-color: #059669;
+  background: rgba(16, 185, 129, 0.16);
+}
+
 .calendar-cell.selected {
   background: var(--primary) !important;
   border-color: var(--primary) !important;
