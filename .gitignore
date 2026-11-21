@@ -13,3 +13,5 @@ crisp_raj_geography.json
 crisp_raj_geography_v2.json
 test_*.py
 __pycache__/
+generate_exhaustive_geography_gemini.py
+gemini_exhaustive_geo_cache.json
