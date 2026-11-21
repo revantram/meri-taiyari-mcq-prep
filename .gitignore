@@ -24,3 +24,7 @@ raw_raj_art_culture.txt
 generate_ultradense_geography_gemini.py
 gemini_ultradense_geo_cache.json
 finish_ch18_to_23.py
+generate_ultradense_history_gemini.py
+gemini_ultradense_history_cache.json
+generate_ultradense_art_culture_gemini.py
+gemini_ultradense_art_culture_cache.json
