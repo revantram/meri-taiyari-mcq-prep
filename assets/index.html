@@ -245,6 +245,34 @@
     <!-- ================= TAB 4: सेटिंग्स ================= -->
     <section id="tab-settings" class="view-section">
 
+      <!-- 0. Google Gemini AI Engine Configuration -->
+      <div class="glass-card" style="margin-bottom: 16px; border: 1.5px solid rgba(59, 130, 246, 0.35);">
+        <div class="glass-card-header">
+          <h3 class="card-title">
+            <span>🤖</span> Google Gemini AI इंजन
+          </h3>
+          <span class="badge-count" style="background: rgba(16, 185, 129, 0.15); color: #059669; font-weight: 700;">सक्रिय (Active)</span>
+        </div>
+        <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+          Google Gemini AI आपके गूगल डॉक्स व नोट्स को समझकर परीक्षा स्तर के प्रामाणिक प्रश्न और 4 सटीक विकल्प तैयार करता है।
+        </p>
+
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label class="form-label">Google Gemini API Key:</label>
+          <div style="display: flex; gap: 8px;">
+            <input type="password" class="form-input" id="gemini-api-key-input" placeholder="AQ.Ab... या AIzaSy..." style="flex: 1; font-family: monospace;">
+            <button class="btn btn-secondary btn-sm" id="btn-toggle-key-visibility" type="button" title="Key देखें / छुपाएं">👁️</button>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn btn-primary btn-sm" id="btn-save-gemini-key">
+            💾 API Key सेव करें
+          </button>
+          <span id="gemini-key-status" style="font-size: 12px; font-weight: 600; color: #059669;"></span>
+        </div>
+      </div>
+
       <!-- 1. Add & Manage Google Docs -->
       <div class="glass-card" id="add-doc-card">
         <div class="glass-card-header">
